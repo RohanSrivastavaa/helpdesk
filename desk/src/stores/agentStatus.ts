@@ -27,6 +27,9 @@ export const useAgentStatusStore = defineStore("agentStatus", () => {
   // Feature 7: break alert timer handle
   let breakAlertTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // Heartbeat timer — pings backend every 30s when agent is not Offline
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
   // Feature 3: beforeunload cleanup ref
   let beforeUnloadRegistered = false;
 
@@ -112,7 +115,30 @@ export const useAgentStatusStore = defineStore("agentStatus", () => {
     }
   }
 
-  watch(currentStatus, _resetBreakAlert);
+  function _startHeartbeat() {
+    if (heartbeatTimer) return;
+    heartbeatTimer = setInterval(() => {
+      if (currentStatus.value !== "Offline") {
+        call("fitelo_helpdesk.fitelo_helpdesk.api.agent_status.ping_heartbeat").catch(() => {});
+      }
+    }, 30_000);
+  }
+
+  function _stopHeartbeat() {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+  }
+
+  watch(currentStatus, (status) => {
+    if (status === "Offline") {
+      _stopHeartbeat();
+    } else {
+      _startHeartbeat();
+    }
+    _resetBreakAlert();
+  }, { immediate: true });
 
   // -------------------------------------------------------------------------
   // Feature 1 & realtime: subscribe to own status updates
