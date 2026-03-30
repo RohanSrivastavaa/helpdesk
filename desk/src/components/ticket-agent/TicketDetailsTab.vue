@@ -37,6 +37,11 @@
 
         <!-- Assignee component -->
         <AssignTo />
+
+        <!-- Tags -->
+        <div class="relative mt-3">
+          <TicketTags :ticket-name="ticket.doc.name" />
+        </div>
       </div>
     </div>
 
@@ -77,6 +82,7 @@ import { computed, inject, ref } from "vue";
 import TicketField from "../TicketField.vue";
 import AssignTo from "./AssignTo.vue";
 import TicketContact from "./TicketContact.vue";
+import TicketTags from "./TicketTags.vue";
 
 const ticket = inject(TicketSymbol);
 const assignees = inject(AssigneeSymbol);

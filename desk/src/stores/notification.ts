@@ -33,6 +33,15 @@ export const useNotificationStore = defineStore("notification", () => {
     onSuccess: () => resource.reload(),
   });
 
+  function dismiss(name: string) {
+    createResource({
+      url: "helpdesk.helpdesk.doctype.hd_notification.utils.dismiss",
+      auto: true,
+      params: { name },
+      onSuccess: () => resource.reload(),
+    });
+  }
+
   const read = (ticket: string) => {
     createResource({
       url: "helpdesk.helpdesk.doctype.hd_notification.utils.clear",
@@ -67,9 +76,15 @@ export const useNotificationStore = defineStore("notification", () => {
     resource.reload();
   });
 
+  $socket.on("helpdesk:new-notification", () => {
+    if (isCustomerPortal.value) return;
+    resource.reload();
+  });
+
   return {
     clear,
     data,
+    dismiss,
     toggle,
     read,
     unread,

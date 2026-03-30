@@ -1,4 +1,7 @@
 <template>
+  <!-- AI Triage suggestion banner -->
+  <TicketAISuggestion />
+
   <Tabs
     :modelValue="tabIndex"
     :tabs="tabs"
@@ -6,34 +9,44 @@
     class="[&_[role='tab']]:px-0 [&_[role='tablist']]:px-5 [&_[role='tablist']]:gap-7.5 [&_[role='tablist']]:flex-shrink-0"
   >
     <template #tab-panel="{ tab }">
-      <TicketAgentActivities
-        v-if="Boolean(activities.data)"
-        ref="ticketAgentActivitiesRef"
-        :activities="filterActivities(tab.name as TicketTab)"
-        :title="tab.label"
-        :ticket-status="ticket.doc.status"
-        @email:reply="
-          (e) => {
-            communicationAreaRef.replyToEmail(e);
-          }
-        "
-        @update="
-          () => {
-            activities.reload();
-            ticketAgentActivitiesRef.scrollToLatestActivity();
-          }
-        "
-      />
-      <div v-else class="flex items-center justify-center flex-col mt-20">
-        <LoadingIndicator :scale="8" class="text-ink-gray-5" />
-        <p class="text-xl font-medium text-ink-gray-5 absolute top-[50%]">
-          Loading...
-        </p>
-      </div>
+      <!-- WhatsApp tab renders its own component -->
+      <WhatsAppArea v-if="tab.name === 'whatsapp'" />
+
+      <!-- Internal notes tab -->
+      <InternalNoteArea v-else-if="tab.name === 'notes'" class="h-full" />
+
+      <!-- All other tabs -->
+      <template v-else>
+        <TicketAgentActivities
+          v-if="Boolean(activities.data)"
+          ref="ticketAgentActivitiesRef"
+          :activities="filterActivities(tab.name as TicketTab)"
+          :title="tab.label"
+          :ticket-status="ticket.doc.status"
+          @email:reply="
+            (e) => {
+              communicationAreaRef.replyToEmail(e);
+            }
+          "
+          @update="
+            () => {
+              activities.reload();
+              ticketAgentActivitiesRef.scrollToLatestActivity();
+            }
+          "
+        />
+        <div v-else class="flex items-center justify-center flex-col mt-20">
+          <LoadingIndicator :scale="8" class="text-ink-gray-5" />
+          <p class="text-xl font-medium text-ink-gray-5 absolute top-[50%]">
+            Loading...
+          </p>
+        </div>
+      </template>
     </template>
   </Tabs>
-  <!-- Comm Area -->
+  <!-- Comm Area (hidden when on WhatsApp or Notes tab) -->
   <CommunicationArea
+    v-if="tabs[tabIndex]?.name !== 'whatsapp' && tabs[tabIndex]?.name !== 'notes'"
     ref="communicationAreaRef"
     :ticketId="String(ticket.doc?.name)"
     :to-emails="[ticket.doc?.raised_by]"
@@ -52,10 +65,11 @@
 <script setup lang="ts">
 import {
   ActivityIcon,
-  CommentIcon,
   EmailIcon,
   PhoneIcon,
+  WhatsAppIcon,
 } from "@/components/icons";
+import LucideLock from "~icons/lucide/lock";
 import { useActiveTabManager } from "@/composables/useActiveTabManager";
 import { useTelephonyStore } from "@/stores/telephony";
 import {
@@ -65,10 +79,23 @@ import {
   TicketSymbol,
   TicketTab,
 } from "@/types";
-import { LoadingIndicator, Tabs } from "frappe-ui";
+import { call, LoadingIndicator, Tabs } from "frappe-ui";
 import { storeToRefs } from "pinia";
-import { computed, ComputedRef, defineAsyncComponent, inject, ref } from "vue";
+import {
+  computed,
+  ComputedRef,
+  defineAsyncComponent,
+  inject,
+  onMounted,
+  onUnmounted,
+  ref,
+  watch,
+} from "vue";
 import TicketAgentActivities from "../ticket/TicketAgentActivities.vue";
+import WhatsAppArea from "../ticket/WhatsAppArea.vue";
+import InternalNoteArea from "../ticket/InternalNoteArea.vue";
+import TicketAISuggestion from "./TicketAISuggestion.vue";
+import { socket } from "@/socket";
 
 const CommunicationArea = defineAsyncComponent(
   () => import("@/components/CommunicationArea.vue")
@@ -82,6 +109,36 @@ const communicationAreaRef = ref(null);
 const telephonyStore = useTelephonyStore();
 const { isCallingEnabled } = storeToRefs(telephonyStore);
 
+// WhatsApp messages for the omnichannel timeline
+const waMessages = ref<any[]>([]);
+
+async function fetchWaMessages() {
+  const name = ticket.value?.doc?.name;
+  if (!name || !ticket.value?.doc?.whatsapp_number) return;
+  try {
+    const result = await call(
+      "fitelo_helpdesk.fitelo_helpdesk.api.whatsapp.get_whatsapp_messages",
+      { ticket_name: name }
+    );
+    waMessages.value = result ?? [];
+  } catch {
+    waMessages.value = [];
+  }
+}
+
+watch(
+  () => ticket.value?.doc?.name,
+  (name) => { if (name) fetchWaMessages(); },
+  { immediate: true }
+);
+
+function onWaMessage(data: { ticket: string }) {
+  if (data.ticket === ticket.value?.doc?.name) fetchWaMessages();
+}
+
+onMounted(() => socket.on("whatsapp_message", onWaMessage));
+onUnmounted(() => socket.off("whatsapp_message", onWaMessage));
+
 const tabs: ComputedRef<TabObject[]> = computed(() => {
   const _tabs: TabObject[] = [
     {
@@ -94,20 +151,34 @@ const tabs: ComputedRef<TabObject[]> = computed(() => {
       label: "Emails",
       icon: EmailIcon,
     },
-    {
-      name: "comment",
-      label: "Comments",
-      icon: CommentIcon,
-    },
   ];
 
-  if (isCallingEnabled.value) {
+  const hasCalls = (activities.value?.data?.calls?.length ?? 0) > 0;
+  if (isCallingEnabled.value && hasCalls) {
     _tabs.push({
       name: "call",
       label: "Calls",
       icon: PhoneIcon,
     });
   }
+
+  const isWaTicket = ["WhatsApp", "Waaku WhatsApp"].includes(
+    ticket.value.doc?.ticket_source
+  );
+  if (isWaTicket || ticket.value.doc?.whatsapp_number || waMessages.value.length > 0) {
+    _tabs.push({
+      name: "whatsapp",
+      label: "WhatsApp",
+      icon: WhatsAppIcon,
+    });
+  }
+
+  _tabs.push({
+    name: "notes",
+    label: "Notes",
+    icon: LucideLock,
+  });
+
   return _tabs;
 });
 
@@ -131,7 +202,7 @@ const _activities = computed(() => {
         key: email.creation,
         cc: email.cc,
         bcc: email.bcc,
-        creation: email.communication_date || email.creation,
+        creation: email.creation,
         attachments: email.attachments,
         name: email.name,
         deliveryStatus: email.delivery_status,
@@ -180,12 +251,27 @@ const _activities = computed(() => {
     };
   });
 
+  const waProps = waMessages.value.map((msg) => ({
+    type: "whatsapp",
+    key: `wa-${msg.name}`,
+    name: msg.name,
+    creation: msg.creation,
+    direction: msg.type, // "Incoming" or "Outgoing"
+    message: msg.message,
+    from: msg.from,
+    to: msg.to,
+    profile_name: msg.profile_name,
+    content_type: msg.content_type,
+    attach: msg.attach,
+  }));
+
   const sorted = [
     ...emailProps,
     ...commentProps,
     ...historyProps,
     ...callProps,
-  ].sort((a, b) => new Date(a.creation) - new Date(b.creation));
+    ...waProps,
+  ].sort((a, b) => new Date(a.creation).getTime() - new Date(b.creation).getTime());
   const data = [];
   let i = 0;
 
@@ -245,6 +331,7 @@ function filterActivities(eventType: TicketTab) {
   if (eventType === "activity") {
     return _activities.value;
   }
+  // "whatsapp" tab renders WhatsAppArea separately, but keep filter for completeness
   return _activities.value.filter((activity) => activity.type === eventType);
 }
 </script>

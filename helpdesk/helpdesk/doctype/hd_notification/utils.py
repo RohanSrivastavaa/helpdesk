@@ -2,6 +2,15 @@ import frappe
 
 
 @frappe.whitelist()
+def dismiss(name: str):
+    """Delete a single notification by its document name."""
+    doc = frappe.get_doc("HD Notification", name)
+    if doc.user_to != frappe.session.user:
+        frappe.throw("Not permitted", frappe.PermissionError)
+    frappe.delete_doc("HD Notification", name, ignore_permissions=True)
+
+
+@frappe.whitelist()
 def clear(ticket: str | int | None = None, comment: str | None = None):
     """
     Mark notifications as read. No arguments will clear all notifications for `user`.

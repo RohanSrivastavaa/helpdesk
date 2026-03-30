@@ -1,4 +1,5 @@
 @import "frappe-ui/style.css";
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@700,500,400&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -17,3 +18,241 @@ html,
 body {
   color: var(--ink-gray-9);
 }
+
+/* ================================================================
+   DARK MODE OVERRIDES
+   frappe-ui compiles Tailwind utilities with hardcoded hex values,
+   so raw classes like bg-gray-50, text-gray-700 etc. don't respond
+   to [data-theme="dark"]. These overrides remap them.
+   ================================================================ */
+
+/* --- Page root: browser default is white; set dark bg on html/body --- */
+[data-theme="dark"] {
+  background-color: #0F0F0F;
+  color-scheme: dark;
+}
+[data-theme="dark"] body {
+  background-color: #0F0F0F;
+}
+
+/* --- Raw inputs/textareas with no bg class (e.g. filter bar) --- */
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background-color: #232323 !important;
+  color: #D4D4D4 !important;
+  border-color: #343434 !important;
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: #717171 !important;
+}
+
+/* --- Backgrounds --- */
+[data-theme="dark"] .bg-white          { background-color: #0F0F0F !important; }
+/* Email activity cards — slightly elevated from page bg */
+[data-theme="dark"] [id^="communication-"] { background-color: #1C1C1C !important; }
+/* Email iframe background matches card */
+[data-theme="dark"] iframe.prose-f     { background-color: #1C1C1C !important; }
+[data-theme="dark"] .bg-gray-50        { background-color: #1C1C1C !important; }
+[data-theme="dark"] .bg-gray-100       { background-color: #232323 !important; }
+[data-theme="dark"] .bg-gray-200       { background-color: #2B2B2B !important; }
+[data-theme="dark"] .bg-gray-300       { background-color: #343434 !important; }
+
+/* --- Borders --- */
+[data-theme="dark"] .border-gray-100                  { border-color: #232323 !important; }
+[data-theme="dark"] .border-gray-200                  { border-color: #2B2B2B !important; }
+[data-theme="dark"] .border-gray-300                  { border-color: #343434 !important; }
+[data-theme="dark"] .divide-gray-100 > * + *          { border-color: #232323 !important; }
+[data-theme="dark"] .divide-gray-200 > * + *          { border-color: #2B2B2B !important; }
+
+/* --- Text --- */
+[data-theme="dark"] .text-black        { color: #F8F8F8  !important; }
+[data-theme="dark"] .text-gray-500     { color: #808080  !important; }
+[data-theme="dark"] .text-gray-600     { color: #999999  !important; }
+[data-theme="dark"] .text-gray-700     { color: #AFAFAF  !important; }
+[data-theme="dark"] .text-gray-800     { color: #D4D4D4  !important; }
+[data-theme="dark"] .text-gray-900     { color: #F8F8F8  !important; }
+
+/* --- Hover states --- */
+[data-theme="dark"] .hover\:bg-gray-50:hover  { background-color: #232323 !important; }
+[data-theme="dark"] .hover\:bg-gray-100:hover { background-color: #2B2B2B !important; }
+
+/* --- Red (Urgent priority / Failed SLA) --- */
+[data-theme="dark"] .bg-red-50         { background-color: #361515 !important; }
+[data-theme="dark"] .bg-red-100        { background-color: #521515 !important; }
+[data-theme="dark"] .border-red-200    { border-color:     #681916 !important; }
+[data-theme="dark"] .text-red-500      { color: #EB4D52   !important; }
+[data-theme="dark"] .text-red-600      { color: #FC7474   !important; }
+[data-theme="dark"] .text-red-700      { color: #FF9595   !important; }
+
+/* --- Orange (High priority / Resolution Due SLA) --- */
+[data-theme="dark"] .bg-orange-50      { background-color: #401F07 !important; }
+[data-theme="dark"] .bg-orange-100     { background-color: #532707 !important; }
+[data-theme="dark"] .border-orange-200 { border-color:     #683108 !important; }
+[data-theme="dark"] .text-orange-500   { color: #DE6D1B   !important; }
+[data-theme="dark"] .text-orange-600   { color: #FA8A40   !important; }
+[data-theme="dark"] .text-orange-700   { color: #FFA873   !important; }
+
+/* --- Amber (Medium priority) --- */
+[data-theme="dark"] .bg-amber-50       { background-color: #371E06 !important; }
+[data-theme="dark"] .bg-amber-100      { background-color: #4B2606 !important; }
+[data-theme="dark"] .border-amber-200  { border-color:     #603007 !important; }
+[data-theme="dark"] .text-amber-600    { color: #E79913   !important; }
+[data-theme="dark"] .text-amber-700    { color: #F0BA31   !important; }
+
+/* --- Green (Low priority / WhatsApp / Fulfilled SLA) --- */
+[data-theme="dark"] .bg-green-50       { background-color: #0B2E1C !important; }
+[data-theme="dark"] .bg-green-100      { background-color: #0A3F27 !important; }
+[data-theme="dark"] .border-green-200  { border-color:     #035831 !important; }
+[data-theme="dark"] .text-green-600    { color: #78D7A9   !important; }
+[data-theme="dark"] .text-green-700    { color: #9BE6C1   !important; }
+
+/* --- Blue (In Training / Paused SLA / Email channel) --- */
+[data-theme="dark"] .bg-blue-50        { background-color: #0E2037 !important; }
+[data-theme="dark"] .bg-blue-100       { background-color: #052B53 !important; }
+[data-theme="dark"] .border-blue-200   { border-color:     #063D71 !important; }
+[data-theme="dark"] .text-blue-500     { color: #5AAEF2   !important; }
+[data-theme="dark"] .text-blue-600     { color: #8CC1EC   !important; }
+[data-theme="dark"] .text-blue-700     { color: #ADD2F5   !important; }
+
+/* --- Teal (status badge) --- */
+[data-theme="dark"] .bg-teal-100       { background-color: #042B2B !important; }
+[data-theme="dark"] .text-teal-700     { color: #5EEAD4   !important; }
+
+/* --- Violet (status badge) --- */
+[data-theme="dark"] .bg-violet-100     { background-color: #1E1040 !important; }
+[data-theme="dark"] .text-violet-700   { color: #C4B5FD   !important; }
+
+/* --- Purple (status badge / Waaku WA channel) --- */
+[data-theme="dark"] .bg-purple-100     { background-color: #1A0A30 !important; }
+[data-theme="dark"] .text-purple-500   { color: #C084FC   !important; }
+[data-theme="dark"] .text-purple-600   { color: #D8B4FE   !important; }
+[data-theme="dark"] .text-purple-700   { color: #E9D5FF   !important; }
+
+/* --- Pink / Cyan / Yellow (status badges) --- */
+[data-theme="dark"] .text-pink-500     { color: #F9A8D4   !important; }
+[data-theme="dark"] .text-cyan-700     { color: #67E8F9   !important; }
+[data-theme="dark"] .text-yellow-700   { color: #FDE047   !important; }
+
+/* --- Prose table (internal notes, ticket description) --- */
+[data-theme="dark"] .prose-f td        { border-color: #343434 !important; background-color: transparent !important; }
+[data-theme="dark"] .prose-f th        { border-color: #343434 !important; background-color: #232323 !important; color: #D4D4D4 !important; }
+
+/* ================================================================
+   FITELO BRAND STYLES
+   Primary: Honey Orange #FF8643
+   Mint Cyan: #99E8D3
+   Grey Blue: #2F313B
+   Font: Satoshi
+   ================================================================ */
+
+/* --- Font: Satoshi replaces InterVar globally --- */
+html,
+html body,
+html button,
+html input,
+html select,
+html textarea {
+  font-family: 'Satoshi', 'InterVar', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* --- Primary colour tokens: map frappe-ui "blue" role → Honey Orange --- */
+:root {
+  /* Surface fills (used by subtle/outline/ghost blue buttons, Replied status badge bg) */
+  --surface-blue-1: #FFF9F5;
+  --surface-blue-2: #FFE6CF;
+  --surface-blue-3: #FFD0A8;
+  /* Ink fills (used by subtle/outline/ghost blue button text & icon) */
+  --ink-blue-1: #FF8643;
+  --ink-blue-2: #E06A20;
+  --ink-blue-3: #C05010;
+  --ink-blue-link: #E06A20;
+  /* Outline (used by outline blue button borders) */
+  --outline-blue-1: #FFCBA3;
+}
+
+/* Solid blue button — bg-blue-500 is compiled to hardcoded hex by Tailwind;
+   override all blue-500 backgrounds to Honey Orange. */
+.bg-blue-500 {
+  background-color: #FF8643 !important;
+}
+.hover\:bg-blue-500:hover {
+  background-color: #FF8643 !important;
+}
+.bg-blue-600 {
+  background-color: #E06A20 !important;
+}
+.bg-blue-700 {
+  background-color: #C05010 !important;
+}
+
+/* Hover states for solid buttons (bg-surface-blue-3 is semantic → already covered by CSS var) */
+[data-theme="dark"] .hover\:bg-surface-blue-3:hover {
+  background-color: #C05010 !important;
+}
+
+/* --- Blue text (compiled) → Orange text --- */
+.text-blue-500 { color: #FF8643 !important; }
+.text-blue-600 { color: #E06A20 !important; }
+.text-blue-700 { color: #C05010 !important; }
+
+/* --- Blue borders (compiled) → Orange borders --- */
+.border-blue-400 { border-color: #FFB070 !important; }
+.border-blue-500 { border-color: #FF8643 !important; }
+
+/* --- Unread notification dot (Sidebar + Notifications panel) --- */
+.bg-blue-400 {
+  background-color: #FF8643 !important;
+}
+
+/* --- Status badge: Open  (DB color "Red" → Honey Orange, solid)  ---
+   The badge span always has rounded-full; "Red" maps to text-red-500 + bg-surface-red-1. */
+span.rounded-full.text-red-500 {
+  color: #fff !important;
+  background-color: #FF8643 !important;
+}
+
+/* --- Status badge: Resolved (DB color "Green" → Mint Cyan, solid) ---
+   "Green" maps to text-green-700 + bg-surface-green-2. */
+span.rounded-full.text-green-700 {
+  color: #0A6E5C !important;
+  background-color: #99E8D3 !important;
+}
+
+/* --- Status badge: Replied (DB color "Blue" → orange family) --- */
+span.rounded-full.text-blue-700 {
+  color: #fff !important;
+  background-color: #FFB070 !important;
+}
+
+/* --- Sidebar active item: orange left-border strip + warm bg.
+   SidebarLink adds bg-white + shadow-sm when :is-active="true", inside the
+   bg-gray-50 sidebar panel. --- */
+.bg-gray-50 .shadow-sm.bg-white {
+  background-color: #FFF0E4 !important;
+  border-left: 2px solid #FF8643 !important;
+}
+
+/* Dark-mode: keep the active link readable */
+[data-theme="dark"] .bg-gray-50 .shadow-sm.bg-white {
+  background-color: #3A2010 !important;
+  border-left: 2px solid #FF8643 !important;
+}
+
+/* --- Dark-mode companions for the orange token overrides --- */
+[data-theme="dark"] {
+  --surface-blue-1: #2C1A0A;
+  --surface-blue-2: #3A2010;
+  --surface-blue-3: #4A2D14;
+  --ink-blue-1: #FF8643;
+  --ink-blue-2: #FFA060;
+  --ink-blue-3: #FFB880;
+  --ink-blue-link: #FFA060;
+  --outline-blue-1: #7A4020;
+}
+
+/* Dark-mode: compiled blue classes */
+[data-theme="dark"] .text-blue-700 { color: #FFB880 !important; }
+[data-theme="dark"] .text-blue-600 { color: #FFA060 !important; }
+[data-theme="dark"] .text-blue-500 { color: #FF8643 !important; }

@@ -68,6 +68,33 @@
             type="text"
             :placeholder="__('A short description')"
           />
+          <!-- Duplicate warning (agent portal only) -->
+          <div
+            v-if="!isCustomerPortal && duplicates.length"
+            class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2"
+          >
+            <p class="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-amber-800">
+              ⚠️ Similar open tickets found — check before creating
+            </p>
+            <div class="flex flex-col gap-1">
+              <div
+                v-for="d in duplicates"
+                :key="d.name"
+                class="flex items-center justify-between gap-2"
+              >
+                <span class="truncate text-xs text-amber-700">
+                  <span class="font-mono text-amber-500">#{{ d.name }}</span>
+                  · {{ d.subject }}
+                </span>
+                <button
+                  class="shrink-0 text-xs text-blue-600 hover:underline"
+                  @click.prevent="openTicket(d.name)"
+                >
+                  View →
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
         <SearchArticles
           v-if="isCustomerPortal"
@@ -156,7 +183,7 @@ import {
 } from "frappe-ui";
 import { useOnboarding } from "frappe-ui/frappe";
 import sanitizeHtml from "sanitize-html";
-import { computed, defineAsyncComponent, onMounted, reactive, ref } from "vue";
+import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import SearchArticles from "../../components/SearchArticles.vue";
 const TicketTextEditor = defineAsyncComponent(
@@ -181,6 +208,33 @@ const subject = ref("");
 const description = ref("");
 const attachments = ref([]);
 const templateFields = reactive({});
+
+// Duplicate detection
+const duplicates = ref<{ name: string; subject: string; status: string }[]>([]);
+let dupTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(subject, (val) => {
+  if (dupTimer) clearTimeout(dupTimer);
+  if (!val || val.trim().length < 5) {
+    duplicates.value = [];
+    return;
+  }
+  dupTimer = setTimeout(async () => {
+    try {
+      const result = await call(
+        "fitelo_helpdesk.fitelo_helpdesk.api.duplicate_detection.find_open_duplicates",
+        { subject: val.trim() }
+      );
+      duplicates.value = result || [];
+    } catch {
+      duplicates.value = [];
+    }
+  }, 600);
+});
+
+function openTicket(ticketId: string) {
+  router.push({ name: "TicketAgent", params: { ticketId } });
+}
 
 const template = createResource({
   url: "helpdesk.helpdesk.doctype.hd_ticket_template.api.get_one",

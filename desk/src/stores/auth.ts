@@ -31,6 +31,9 @@ export const useAuthStore = defineStore("auth", () => {
   const isManager: ComputedRef<boolean> = computed(
     () => user__.value.is_manager
   );
+  const isDashboardManager: ComputedRef<boolean> = computed(
+    () => !!user__.value.is_dashboard_manager
+  );
 
   const userId: ComputedRef<string> = computed(() => user__.value.user_id);
   const userImage: ComputedRef<string> = computed(
@@ -45,6 +48,9 @@ export const useAuthStore = defineStore("auth", () => {
   const language: ComputedRef<string> = computed(() => user__.value.language);
   const userTeams: ComputedRef<string[]> = computed(
     () => user__.value.user_teams
+  );
+  const isChatSupportMember: ComputedRef<boolean> = computed(() =>
+    (user__.value.user_teams || []).includes("Dietician Chat Support")
   );
 
   function sessionUser() {
@@ -81,6 +87,8 @@ export const useAuthStore = defineStore("auth", () => {
     init,
     isAdmin,
     isAgent,
+    isChatSupportMember,
+    isDashboardManager,
     isManager,
     isLoggedIn,
     login,

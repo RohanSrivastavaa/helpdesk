@@ -8,7 +8,7 @@
 
 <script setup lang="ts">
 import { getFontFamily } from "@/utils";
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 const props = defineProps({
   content: {
@@ -142,6 +142,23 @@ const htmlContent = computed(
         --bg-surface-gray-3: #343434;
         --bg-surface-gray-4: #424242;
       }
+      [data-theme='dark'] html,
+      [data-theme='dark'] body {
+        background-color: #1C1C1C !important;
+        color: #D4D4D4 !important;
+      }
+      [data-theme='dark'] body *:not(a):not(img):not(br):not(hr) {
+        color: inherit !important;
+        background-color: transparent !important;
+      }
+      [data-theme='dark'] a {
+        color: #8CC1EC !important;
+      }
+      [data-theme='dark'] table,
+      [data-theme='dark'] td,
+      [data-theme='dark'] th {
+        border-color: #2B2B2B !important;
+      }
       .replied-content .collapse {
         margin: 10px 0 10px 0;
         visibility: visible;
@@ -216,6 +233,25 @@ const htmlContent = computed(
   </html>
   `
 );
+
+// Sync theme to iframe when user toggles dark mode
+let themeObserver: MutationObserver | null = null;
+
+function syncThemeToIframe() {
+  const iframe = iframeRef.value;
+  if (!iframe?.contentWindow) return;
+  const theme = document.documentElement.getAttribute("data-theme");
+  iframe.contentWindow.document.documentElement.setAttribute("data-theme", theme || "light");
+}
+
+onMounted(() => {
+  themeObserver = new MutationObserver(syncThemeToIframe);
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+});
+
+onUnmounted(() => {
+  themeObserver?.disconnect();
+});
 
 watch(iframeRef, (iframe) => {
   if (iframe) {

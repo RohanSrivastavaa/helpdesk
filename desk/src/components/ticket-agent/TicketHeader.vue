@@ -45,6 +45,24 @@
             </Dropdown>
           </div>
         </div>
+        <!-- Open Chat -->
+        <Button
+          variant="subtle"
+          :loading="chatLoading"
+          @click="openChat"
+          label="Open Chat"
+        >
+          <template #prefix>
+            <FeatherIcon name="external-link" class="h-4 w-4" />
+          </template>
+        </Button>
+        <!-- Snooze -->
+        <SnoozeButton
+          :ticket-name="ticket.doc.name"
+          :is-snoozed="!!ticket.doc.is_snoozed"
+          :snoozed-until="ticket.doc.snoozed_until"
+          @change="ticket.reload()"
+        />
         <!-- Status -->
         <Dropdown :options="statusDropdown" placement="right">
           <template #default="{ open }">
@@ -77,6 +95,60 @@
     @update="ticket.reload()"
   />
   <TicketSubjectModal v-if="showSubjectDialog" v-model="showSubjectDialog" />
+  <HandoffModal
+    v-if="showHandoffModal"
+    v-model="showHandoffModal"
+    :ticket-name="ticket.doc.name"
+    @done="ticket.reload()"
+  />
+  <DispositionModal
+    v-if="showDispositionModal"
+    v-model="showDispositionModal"
+    :target-status="pendingStatus"
+    :ticket-type="ticket.doc?.ticket_type ?? null"
+    @confirm="onDispositionConfirm"
+    @cancel="pendingStatus = ''"
+  />
+  <QualityScoreModal
+    v-if="showQualityModal"
+    v-model="showQualityModal"
+    :ticket-name="ticket.doc?.name"
+  />
+  <InitiateWhatsAppModal
+    v-if="showInitiateWAModal"
+    v-model="showInitiateWAModal"
+    :ticket-name="ticket.doc?.name"
+    :contact-phone="ticket.doc?.contact?.mobile_no"
+    @sent="ticket.reload()"
+  />
+  <!-- CRM token renewal modal -->
+  <CRMTokenModal v-if="showCRMTokenModal" v-model="showCRMTokenModal" />
+  <!-- Open Chat: manual code entry -->
+  <Dialog
+    v-model="showChatModal"
+    :options="{
+      title: 'Open Customer Chat',
+      actions: [
+        {
+          label: 'Open Chat',
+          variant: 'solid',
+          onClick: () => resolveAndOpenChat(manualCode),
+        },
+      ],
+    }"
+  >
+    <template #body-content>
+      <p class="mb-3 text-sm text-ink-gray-6">
+        Customer code not found in subject. Enter it manually:
+      </p>
+      <TextInput
+        v-model="manualCode"
+        placeholder="e.g. 130666"
+        autofocus
+        @keydown.enter="resolveAndOpenChat(manualCode)"
+      />
+    </template>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -113,9 +185,16 @@ import {
 import { useRoute, useRouter } from "vue-router";
 import LucideMerge from "~icons/lucide/merge";
 import { IndicatorIcon } from "../icons";
+import DispositionModal from "@/components/ticket/DispositionModal.vue";
 import TicketNavigation from "./TicketNavigation.vue";
 import TicketSLA from "./TicketSLA.vue";
 import TicketSubjectModal from "./TicketSubjectModal.vue";
+import SnoozeButton from "./SnoozeButton.vue";
+import HandoffModal from "./HandoffModal.vue";
+import QualityScoreModal from "./QualityScoreModal.vue";
+import InitiateWhatsAppModal from "@/components/ticket/InitiateWhatsAppModal.vue";
+import CRMTokenModal from "@/components/ticket/CRMTokenModal.vue";
+import { useAuthStore } from "@/stores/auth";
 
 defineProps({
   viewers: {
@@ -135,6 +214,85 @@ const activities = inject(ActivitiesSymbol);
 
 const showSubjectDialog = ref(false);
 
+// Disposition gate: holds the target status while the modal is open
+const showDispositionModal = ref(false);
+const pendingStatus = ref("");
+
+// Open Chat
+const chatLoading = ref(false);
+const showChatModal = ref(false);
+const showCRMTokenModal = ref(false);
+const manualCode = ref("");
+
+function extractCustomerCode(subject: string): string | null {
+  const match = subject?.match(/\(#(\d+)\)/);
+  return match ? match[1] : null;
+}
+
+async function openChat() {
+  const savedCode = ticket.value.doc?.fitelo_customer_code;
+  const subjectCode = extractCustomerCode(ticket.value.doc?.subject);
+  const code = savedCode || subjectCode;
+  if (!code) {
+    manualCode.value = "";
+    showChatModal.value = true;
+    return;
+  }
+  await resolveAndOpenChat(code);
+}
+
+async function resolveAndOpenChat(code: string) {
+  const trimmed = code?.trim();
+  if (!trimmed) return;
+  showChatModal.value = false;
+  chatLoading.value = true;
+  try {
+    const json = await call(
+      "fitelo_helpdesk.api.permissions.lookup_fitelo_customer",
+      { code: trimmed }
+    );
+    if (json?.error === "token_expired" || json?.error === "token_not_configured") {
+      showCRMTokenModal.value = true;
+      return;
+    }
+    if (!json?.data?.length) {
+      toast.error("No customer found for that code");
+      return;
+    }
+    const customerId = json.data[0].id;
+    if (!ticket.value.doc?.fitelo_customer_code) {
+      ticket.value.setValue.submit({ fitelo_customer_code: trimmed });
+    }
+    window.open(
+      `https://admin-portal.fitelo.net/manage-users/manage-members/chats/${customerId}`,
+      "_blank"
+    );
+  } catch {
+    toast.error("Could not resolve customer, try manually");
+    manualCode.value = trimmed;
+    showChatModal.value = true;
+  } finally {
+    chatLoading.value = false;
+  }
+}
+
+function submitStatus(status: string, extraFields: Record<string, string> = {}) {
+  ticket.value.setValue.submit(
+    { status, ...extraFields },
+    {
+      onSuccess() {
+        activities.value.reload();
+      },
+    }
+  );
+}
+
+function onDispositionConfirm(disposition: string) {
+  showDispositionModal.value = false;
+  submitStatus(pendingStatus.value, { disposition });
+  pendingStatus.value = "";
+}
+
 const { notifyTicketUpdate } = useNotifyTicketUpdate(ticket.value?.name);
 const statusDropdown = computed(() => {
   const statuses =
@@ -145,14 +303,12 @@ const statusDropdown = computed(() => {
     onClick: () => {
       notifyTicketUpdate("Status", o.label_agent);
       if (ticket.value.doc.status === o.label_agent) return;
-      ticket.value.setValue.submit(
-        { status: o.label_agent },
-        {
-          onSuccess() {
-            activities.value.reload();
-          },
-        }
-      );
+      if (o.category === "Resolved") {
+        pendingStatus.value = o.label_agent;
+        showDispositionModal.value = true;
+      } else {
+        submitStatus(o.label_agent);
+      }
     },
     icon: () =>
       h(IndicatorIcon, {
@@ -189,7 +345,11 @@ function updateField(fieldname: string, value: string, callback = () => {}) {
   callback();
 }
 
+const authStore = useAuthStore();
+const showHandoffModal = ref(false);
 const showMergeModal = ref(false);
+const showQualityModal = ref(false);
+const showInitiateWAModal = ref(false);
 const showMergeOption = computed(() => {
   return (
     !ticket.value.doc.is_merged &&
@@ -205,6 +365,24 @@ const defaultActions = computed(() => {
       icon: LucideMerge,
       condition: () => !ticket.value.doc.is_merged,
       onClick: () => (showMergeModal.value = true),
+    });
+  }
+  items.push({
+    label: __("Handoff Ticket"),
+    onClick: () => (showHandoffModal.value = true),
+  });
+  items.push({
+    label: __("Mark as Waiting"),
+    onClick: () => submitStatus("Waiting for Customer"),
+  });
+  items.push({
+    label: __("Send via WhatsApp"),
+    onClick: () => (showInitiateWAModal.value = true),
+  });
+  if (authStore.isManager) {
+    items.push({
+      label: __("Rate Quality"),
+      onClick: () => (showQualityModal.value = true),
     });
   }
   return [

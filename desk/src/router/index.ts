@@ -108,9 +108,114 @@ const routes = [
     component: () => import("@/pages/dashboard/Dashboard.vue"),
   },
   {
+    path: "/agent-status",
+    name: "AgentStatusDashboard",
+    component: () => import("@/pages/agent-status/AgentStatusDashboard.vue"),
+  },
+  {
+    path: "/agent-performance",
+    name: "AgentPerformanceDashboard",
+    component: () => import("@/pages/agent-performance/AgentPerformanceDashboard.vue"),
+  },
+  {
     path: "/call-logs",
     name: "CallLogs",
     component: () => import("@/pages/call-logs/CallLogs.vue"),
+  },
+  {
+    path: "/live-dashboard",
+    name: "LiveDashboard",
+    component: () => import("@/pages/live-dashboard/LiveDashboard.vue"),
+  },
+  {
+    path: "/dashboards/reason-breakdown",
+    name: "ReasonBreakdown",
+    component: () => import("@/pages/dashboards/ReasonBreakdown.vue"),
+  },
+  {
+    path: "/dashboards/agent-performance",
+    name: "AgentPerformanceDaily",
+    component: () => import("@/pages/dashboards/AgentPerformanceDaily.vue"),
+  },
+  {
+    path: "/dashboards/agent-timing",
+    name: "AgentTiming",
+    component: () => import("@/pages/dashboards/AgentTiming.vue"),
+  },
+  {
+    path: "/dashboards/agent-board",
+    name: "AgentBoard",
+    component: () => import("@/pages/dashboards/AgentBoard.vue"),
+  },
+  {
+    path: "/dashboards/agent-availability",
+    name: "AgentAvailability",
+    component: () => import("@/pages/dashboards/AgentAvailability.vue"),
+  },
+  {
+    path: "/ticket-aging",
+    name: "TicketAgingReport",
+    component: () => import("@/pages/ticket-aging/TicketAgingReport.vue"),
+  },
+  {
+    path: "/fcr",
+    name: "FCRReport",
+    component: () => import("@/pages/fcr/FCRReport.vue"),
+  },
+  {
+    path: "/auto-assign",
+    name: "AutoAssignSettings",
+    component: () => import("@/pages/auto-assign/AutoAssignSettings.vue"),
+  },
+  {
+    path: "/escalation-rules",
+    name: "EscalationRules",
+    component: () => import("@/pages/escalation-rules/EscalationRules.vue"),
+  },
+  {
+    path: "/broadcast",
+    name: "WhatsAppBroadcast",
+    component: () => import("@/pages/broadcast/WhatsAppBroadcast.vue"),
+  },
+  {
+    path: "/auto-close",
+    name: "AutoCloseSettings",
+    component: () => import("@/pages/auto-close/AutoCloseSettings.vue"),
+  },
+  {
+    path: "/sla-compliance",
+    name: "SLAComplianceReport",
+    component: () => import("@/pages/sla-compliance/SLAComplianceReport.vue"),
+  },
+  {
+    path: "/shift-schedule",
+    name: "ShiftSchedule",
+    component: () => import("@/pages/shift-schedule/ShiftSchedule.vue"),
+  },
+  {
+    path: "/skill-routing",
+    name: "SkillRouting",
+    component: () => import("@/pages/skill-routing/SkillRouting.vue"),
+  },
+  {
+    path: "/qa-report",
+    name: "QAReport",
+    component: () => import("@/pages/qa-report/QAReport.vue"),
+  },
+  {
+    path: "/wa-optout",
+    name: "WAOptOut",
+    component: () => import("@/pages/wa-optout/WAOptOut.vue"),
+  },
+  {
+    path: "/my-stats",
+    name: "MyStats",
+    component: () => import("@/pages/my-stats/MyStats.vue"),
+  },
+  {
+    path: "/waaku-monitor",
+    name: "WaakuMonitor",
+    component: () => import("@/pages/waaku-monitor/WaakuMonitor.vue"),
   },
 
   // Customer Portal Routes

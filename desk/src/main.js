@@ -25,6 +25,7 @@ import { translationPlugin } from "./translation";
 import CircleAlert from "~icons/lucide/circle-alert";
 import { initSocket } from "./socket";
 
+
 const globalComponents = {
   Badge,
   Button,

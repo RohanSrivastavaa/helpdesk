@@ -1,7 +1,31 @@
 <template>
-  <div v-if="ticket.doc?.name" class="flex-1">
+  <div v-if="ticket.doc?.name" class="flex-1 flex flex-col overflow-hidden">
     <TicketHeader :viewers="viewers" />
-    <div class="h-full flex overflow-hidden">
+
+    <!-- Handoff banner -->
+    <div
+      v-if="pendingHandoff"
+      class="flex items-start gap-3 border-b border-blue-200 bg-blue-50 px-5 py-3 shrink-0"
+    >
+      <span class="mt-0.5 text-xl leading-none">🤝</span>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold text-blue-900">
+          Handoff note from {{ pendingHandoff.from_name }}
+        </p>
+        <p class="mt-0.5 whitespace-pre-wrap text-sm text-blue-800">{{ pendingHandoff.content }}</p>
+        <p class="mt-1 text-xs text-blue-500">{{ fmtHandoffTime(pendingHandoff.creation) }}</p>
+      </div>
+      <button
+        class="shrink-0 rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+        @click="dismissHandoff"
+      >
+        Got it
+      </button>
+    </div>
+
+    <!-- Duplicate detection banner removed -->
+
+    <div class="flex-1 flex overflow-hidden">
       <div class="flex-1 flex flex-col overflow-hidden">
         <!-- Tabs & Communication Area -->
         <TicketActivityPanel />
@@ -23,6 +47,7 @@ import TicketActivityPanel from "@/components/ticket-agent/TicketActivityPanel.v
 import TicketHeader from "@/components/ticket-agent/TicketHeader.vue";
 import TicketSidebar from "@/components/ticket-agent/TicketSidebar.vue";
 import SetContactPhoneModal from "@/components/ticket/SetContactPhoneModal.vue";
+import { socket } from "@/socket";
 import { useActiveViewers } from "@/composables/realtime";
 import { reloadTicket, useTicket } from "@/composables/useTicket";
 import { ticketsToNavigate } from "@/composables/useTicketNavigation";
@@ -38,7 +63,7 @@ import {
   TicketContactSymbol,
   TicketSymbol,
 } from "@/types";
-import { createResource, toast, usePageMeta } from "frappe-ui";
+import { call, createResource, toast, usePageMeta } from "frappe-ui";
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { showCommentBox, showEmailBox } from "./modalStates";
@@ -54,6 +79,62 @@ const props = defineProps({
 });
 const route = useRoute();
 const showPhoneModal = ref(false);
+
+// Handoff note banner
+interface HandoffNote {
+  name: string;
+  content: string;
+  from_name: string;
+  creation: string;
+}
+const pendingHandoff = ref<HandoffNote | null>(null);
+
+async function fetchHandoff() {
+  try {
+    const result = await call(
+      "fitelo_helpdesk.fitelo_helpdesk.api.handoff.get_pending_handoff",
+      { ticket_name: props.ticketId }
+    );
+    pendingHandoff.value = result || null;
+  } catch {
+    // ignore
+  }
+}
+
+async function dismissHandoff() {
+  if (!pendingHandoff.value) return;
+  try {
+    await call("fitelo_helpdesk.fitelo_helpdesk.api.handoff.dismiss_handoff", {
+      note_name: pendingHandoff.value.name,
+    });
+    pendingHandoff.value = null;
+  } catch {
+    toast.create({ message: "Failed to dismiss", type: "error" });
+  }
+}
+
+function fmtHandoffTime(iso: string) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function onHandoffNote(data: { ticket: string }) {
+  if (data.ticket === props.ticketId) {
+    fetchHandoff();
+  }
+}
+
+function onTicketReopened(data: { ticket: string; status: string }) {
+  if (data.ticket === props.ticketId) {
+    reloadTicket(props.ticketId);
+    toast.create({
+      message: `Ticket reopened — customer sent a new WhatsApp message (status: ${data.status})`,
+      type: "info",
+    });
+  }
+}
 
 const ticketComposable = computed(() => useTicket(props.ticketId));
 const ticket = computed(() => ticketComposable.value.ticket);
@@ -127,6 +208,10 @@ type TicketUpdateData = {
 };
 
 onMounted(() => {
+  fetchHandoff();
+  socket.on("handoff_note", onHandoffNote);
+  socket.on("ticket_reopened", onTicketReopened);
+
   ticketsToNavigate.update({
     params: {
       ticket: props.ticketId,
@@ -160,6 +245,8 @@ onBeforeUnmount(() => {
   stopViewing(props.ticketId);
   showEmailBox.value = false;
   showCommentBox.value = false;
+  socket.off("handoff_note", onHandoffNote);
+  socket.off("ticket_reopened", onTicketReopened);
 
   $socket.off("ticket_update");
   $socket.off("helpdesk:ticket-comment");

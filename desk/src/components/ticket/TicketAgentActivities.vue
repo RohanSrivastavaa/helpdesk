@@ -42,6 +42,10 @@
                 "
                 class="text-gray-600 absolute left-[7.5px] size-4"
               />
+              <WhatsAppIcon
+                v-else-if="activity.type === 'whatsapp'"
+                class="text-green-500 absolute left-[7.5px] size-4"
+              />
               <DotIcon v-else class="text-gray-600 absolute left-[7.5px]" />
             </div>
           </div>
@@ -65,6 +69,10 @@
             />
             <CallArea
               v-else-if="activity.type === 'call'"
+              :activity="activity"
+            />
+            <WhatsAppBubble
+              v-else-if="activity.type === 'whatsapp'"
               :activity="activity"
             />
             <FeedbackBox
@@ -109,7 +117,9 @@ import {
   DotIcon,
   EmailIcon,
   PhoneIcon,
+  WhatsAppIcon,
 } from "@/components/icons";
+import WhatsAppBubble from "./WhatsAppBubble.vue";
 import { toggleCommentBox, toggleEmailBox } from "@/pages/ticket/modalStates";
 import { useUserStore } from "@/stores/user";
 import { TicketActivity } from "@/types";
@@ -163,27 +173,17 @@ const communicationAreaRef: Ref = inject("communicationArea");
 const makeCall = inject<() => void>("makeCall");
 
 const emptyText = computed(() => {
-  let text = "No Activities";
-  if (props.title == "Emails") {
-    text = "No Email Communications";
-  } else if (props.title == "Comments") {
-    text = "No Comments";
-    return text;
-  } else if (props.title == "Calls") {
-    text = "No Calls";
-    return text;
-  }
+  if (props.title == "Emails") return "No Email Communications";
+  if (props.title == "Comments") return "No Comments";
+  if (props.title == "Calls") return "No Calls";
+  return "No Activities";
 });
 
 const emptyTextIcon = computed(() => {
   let icon = ActivityIcon;
-  if (props.title == "Emails") {
-    icon = EmailIcon;
-  } else if (props.title == "Comments") {
-    icon = CommentIcon;
-  } else if (props.title == "Calls") {
-    icon = PhoneIcon;
-  }
+  if (props.title == "Emails") icon = EmailIcon;
+  else if (props.title == "Comments") icon = CommentIcon;
+  else if (props.title == "Calls") icon = PhoneIcon;
   return h(icon, { class: "text-gray-500" });
 });
 

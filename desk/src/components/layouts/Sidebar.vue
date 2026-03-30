@@ -8,7 +8,7 @@
   >
     <UserMenu class="mb-2" :options="profileSettings" />
     <SidebarLink
-      v-if="!isCustomerPortal"
+      v-if="!isCustomerPortal && !authStore.isDashboardManager && !isChatSupportManager"
       :label="__('Search')"
       class="my-0.5"
       :icon="LucideSearch"
@@ -23,7 +23,7 @@
       </template>
     </SidebarLink>
     <SidebarLink
-      v-if="!isCustomerPortal"
+      v-if="!isCustomerPortal && !isChatSupportManager"
       class="relative my-0.5 min-h-7"
       :label="__('Dashboard')"
       :icon="LucideLayoutDashboard"
@@ -31,7 +31,96 @@
       :is-active="isActiveTab('Dashboard')"
       :is-expanded="isExpanded"
     />
-    <div class="mb-4" v-if="!isCustomerPortal">
+    <SidebarLink
+      v-if="!isCustomerPortal && authStore.isDashboardManager"
+      class="relative my-0.5 min-h-7"
+      :label="__('Live Dashboard')"
+      :icon="LucideRadio"
+      :to="'LiveDashboard'"
+      :is-active="isActiveTab('LiveDashboard')"
+      :is-expanded="isExpanded"
+    />
+    <!-- Chat Support quick-access ticket views for team managers -->
+    <template v-if="!isCustomerPortal && authStore.isManager && authStore.isChatSupportMember">
+      <div class="mt-3 mb-1 px-2" v-if="isExpanded">
+        <span class="text-xs font-semibold text-ink-gray-4 uppercase tracking-wider">Tickets</span>
+      </div>
+      <div v-else class="mt-2 border-t border-gray-200" />
+      <SidebarLink
+        v-for="view in chatSupportTicketViews"
+        :key="view.name"
+        class="my-0.5"
+        :label="view.label"
+        :icon="view.label === 'Pending Tickets' ? LucideInbox : LucideCheckCircle2"
+        :to="{ name: 'TicketsAgent', query: { view: view.name } }"
+        :is-active="route.query.view === view.name"
+        :is-expanded="isExpanded"
+      >
+        <template #right>
+          <Badge
+            v-if="isExpanded && view.name === 'hd-view-cs-pending' && csViewCounts.pending"
+            :label="csViewCounts.pending > 99 ? '99+' : String(csViewCounts.pending)"
+            theme="orange"
+            variant="subtle"
+          />
+          <Badge
+            v-if="isExpanded && view.name === 'hd-view-cs-completed' && csViewCounts.resolved_today"
+            :label="String(csViewCounts.resolved_today)"
+            theme="green"
+            variant="subtle"
+          />
+        </template>
+      </SidebarLink>
+    </template>
+
+    <!-- Chat Support team dashboards — visible only to members/managers of that team -->
+    <template v-if="!isCustomerPortal && authStore.isManager && authStore.isChatSupportMember">
+      <div class="mt-3 mb-1 px-2" v-if="isExpanded">
+        <span class="text-xs font-semibold text-ink-gray-4 uppercase tracking-wider">Reports</span>
+      </div>
+      <div v-else class="mt-2 border-t border-gray-200" />
+      <SidebarLink
+        class="my-0.5"
+        :label="__('Reason Breakdown')"
+        :icon="LucideBarChart2"
+        :to="'ReasonBreakdown'"
+        :is-active="isActiveTab('ReasonBreakdown')"
+        :is-expanded="isExpanded"
+      />
+      <SidebarLink
+        class="my-0.5"
+        :label="__('Agent Performance')"
+        :icon="LucideActivity"
+        :to="'AgentPerformanceDaily'"
+        :is-active="isActiveTab('AgentPerformanceDaily')"
+        :is-expanded="isExpanded"
+      />
+      <SidebarLink
+        class="my-0.5"
+        :label="__('Agent Timing')"
+        :icon="LucideTimer"
+        :to="'AgentTiming'"
+        :is-active="isActiveTab('AgentTiming')"
+        :is-expanded="isExpanded"
+      />
+      <SidebarLink
+        class="my-0.5"
+        :label="__('Live Agent Board')"
+        :icon="LucideMonitor"
+        :to="'AgentBoard'"
+        :is-active="isActiveTab('AgentBoard')"
+        :is-expanded="isExpanded"
+      />
+      <SidebarLink
+        class="my-0.5"
+        :label="__('Availability')"
+        :icon="LucideCalendarClock"
+        :to="'AgentAvailability'"
+        :is-active="isActiveTab('AgentAvailability')"
+        :is-expanded="isExpanded"
+      />
+    </template>
+    <div class="mb-4" v-if="!isCustomerPortal && !authStore.isDashboardManager && !isChatSupportManager">
       <div
         v-if="notificationStore.unread"
         class="absolute size-1.5 translate-x-6 translate-y-1 rounded-full bg-blue-400 left-1"
@@ -199,11 +288,12 @@ import {
 
 import { HelpIcon } from "frappe-ui/icons";
 import { storeToRefs } from "pinia";
-import { computed, h, markRaw, onMounted, ref } from "vue";
+import { computed, h, markRaw, onMounted, onUnmounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   agentPortalSidebarOptions,
   customerPortalSidebarOptions,
+  restrictedAgentSidebarOptions,
 } from "./layoutSettings";
 
 import { useShortcut } from "@/composables/shortcuts";
@@ -219,6 +309,14 @@ import LucideMail from "~icons/lucide/mail";
 import MailOpen from "~icons/lucide/mail-open";
 import MessageCircle from "~icons/lucide/message-circle";
 import LucideSearch from "~icons/lucide/search";
+import LucideRadio from "~icons/lucide/radio";
+import LucideBarChart2 from "~icons/lucide/bar-chart-2";
+import LucideActivity from "~icons/lucide/activity";
+import LucideTimer from "~icons/lucide/timer";
+import LucideInbox from "~icons/lucide/inbox";
+import LucideCheckCircle2 from "~icons/lucide/check-circle-2";
+import LucideMonitor from "~icons/lucide/monitor";
+import LucideCalendarClock from "~icons/lucide/calendar-clock";
 import Ticket from "~icons/lucide/ticket";
 import Timer from "~icons/lucide/timer";
 import UserPen from "~icons/lucide/user-pen";
@@ -245,26 +343,74 @@ const showCommandPalette = ref(false);
 
 const { pinnedViews, publicViews } = useView();
 
+// CS view badge counts
+const csViewCounts = ref<{ pending: number; resolved_today: number }>({ pending: 0, resolved_today: 0 });
+let csCountTimer: ReturnType<typeof setInterval> | null = null;
+
+async function fetchCsViewCounts() {
+  if (!isChatSupportManager.value) return;
+  try {
+    const data: any = await call(
+      "fitelo_helpdesk.fitelo_helpdesk.api.dashboards.get_cs_view_counts"
+    );
+    csViewCounts.value = data;
+  } catch {}
+}
+
+// Manager views show all team tickets (no _assign filter)
+const chatSupportTicketViews = computed(() =>
+  (publicViews.value || []).filter((v) =>
+    ["hd-view-cs-pending", "hd-view-cs-completed"].includes(v.name)
+  ).sort((a, b) =>
+    a.name === "hd-view-cs-pending" ? -1 : 1
+  )
+);
+
+// Chat support managers see ONLY ticket views + the 3 report dashboards
+const isChatSupportManager = computed(
+  () => !isCustomerPortal.value && authStore.isManager && authStore.isChatSupportMember
+);
+
 const isFCSite = ref(window.is_fc_site);
 
 const allViews = computed(() => {
-  let items = isCustomerPortal.value
-    ? customerPortalSidebarOptions
-    : agentPortalSidebarOptions;
-
-  if (!isCallingEnabled.value) {
-    items = items.filter((item) => item.label !== __("Call Logs"));
+  if (isCustomerPortal.value) {
+    return [{ label: __("All Views"), hideLabel: true, opened: true, views: customerPortalSidebarOptions }];
   }
 
-  const options = [
-    {
+  // Chat support managers: sidebar is handled by hardcoded Tickets + Reports sections
+  if (isChatSupportManager.value) {
+    return [];
+  }
+
+  // Dashboard-only manager (Agent Manager without Helpdesk Manager): no ticket views
+  if (authStore.isDashboardManager && !authStore.isManager) {
+    return [];
+  }
+
+  if (!authStore.isManager) {
+    // Plain agents: show only Pending / Completed Tickets from public views, no section headers
+    return [{
       label: __("All Views"),
       hideLabel: true,
       opened: true,
-      views: items,
-    },
+      views: parseViews(
+        (publicViews.value || []).filter((v) =>
+          ["Pending Tickets", "Completed Tickets"].includes(v.label)
+        )
+      ),
+    }];
+  }
+
+  // Managers with Agent role: full sidebar
+  let items = agentPortalSidebarOptions.filter(
+    (item) => item.label !== __("Call Logs") || isCallingEnabled.value
+  );
+
+  const options = [
+    { label: __("All Views"), hideLabel: true, opened: true, views: items },
   ];
-  if (publicViews.value?.length && !isCustomerPortal.value) {
+  if (publicViews.value?.length) {
     options.push({
       label: __("Public Views"),
       opened: true,
@@ -651,5 +797,12 @@ onMounted(() => {
   useShortcut({ key: ",", meta: true }, () => {
     showSettingsModal.value = !showSettingsModal.value;
   });
+  // Fetch CS view badge counts and refresh every 60 seconds
+  fetchCsViewCounts();
+  csCountTimer = setInterval(fetchCsViewCounts, 60_000);
+});
+
+onUnmounted(() => {
+  if (csCountTimer) clearInterval(csCountTimer);
 });
 </script>

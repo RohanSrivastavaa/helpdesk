@@ -332,7 +332,7 @@ export interface EmailAccount {
   default_incoming?: boolean;
 }
 
-export type TicketTab = "activity" | "email" | "comment" | "details" | "call";
+export type TicketTab = "activity" | "email" | "details" | "call" | "whatsapp" | "notes";
 
 export interface TabObject {
   name: TicketTab;
@@ -711,5 +711,6 @@ declare global {
     date_format: string;
     time_format: string;
     session_user: string;
+    csrf_token: string;
   }
 }

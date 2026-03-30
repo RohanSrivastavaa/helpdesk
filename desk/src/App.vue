@@ -13,11 +13,13 @@ import { computed, defineAsyncComponent, h, onMounted } from "vue";
 import Wifi from "~icons/lucide/wifi";
 import WifiOff from "~icons/lucide/wifi-off";
 import { useAuthStore } from "./stores/auth";
+import { useThemeStore } from "./stores/theme";
 import { useFavicon } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import { __ } from "./translation";
 
 const configStore = useConfigStore();
+useThemeStore().initTheme();
 const { favicon } = storeToRefs(configStore);
 
 useFavicon(favicon);

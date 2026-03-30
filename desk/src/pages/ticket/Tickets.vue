@@ -1,5 +1,20 @@
 <template>
   <div>
+    <!-- Feature 5: Summary bar for chat support manager views -->
+    <div v-if="showSummaryBar" class="flex items-center gap-5 px-6 py-2.5 bg-white border-b border-outline-gray-2 text-sm">
+      <span class="text-xs font-semibold text-ink-gray-4 uppercase tracking-wide">Summary</span>
+      <span class="flex items-center gap-1.5">
+        <span class="inline-block w-2 h-2 rounded-full" style="background:#FF4444" />
+        <span class="text-ink-gray-7"><strong class="text-ink-gray-9">{{ summaryData.open_count ?? '—' }}</strong> open</span>
+      </span>
+      <span class="flex items-center gap-1.5">
+        <span class="inline-block w-2 h-2 rounded-full" style="background:#22c55e" />
+        <span class="text-ink-gray-7"><strong class="text-ink-gray-9">{{ summaryData.resolved_today ?? '—' }}</strong> resolved today</span>
+      </span>
+      <span v-if="summaryData.avg_resolution_mins != null" class="text-ink-gray-5 text-xs">
+        Avg resolve: <strong class="text-ink-gray-7">{{ summaryData.avg_resolution_mins }}m</strong>
+      </span>
+    </div>
     <LayoutHeader>
       <template #left-header>
         <ViewBreadcrumbs
@@ -51,6 +66,41 @@
       v-model="viewDialog"
       @update="(view, action) => handleView(view, action)"
     />
+
+    <!-- Bulk Action Dialog -->
+    <Dialog
+      v-model="showBulkDialog"
+      :options="{
+        title: bulkDialogTitles[bulkDialogType] || 'Bulk Action',
+        size: 'sm',
+        actions: [
+          {
+            label: 'Apply',
+            variant: 'solid',
+            loading: bulkLoading,
+            onClick: applyBulkAction,
+          },
+        ],
+      }"
+    >
+      <template #body-content>
+        <div class="py-2">
+          <select
+            v-model="bulkDialogValue"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+          >
+            <option value="" disabled>Select…</option>
+            <option
+              v-for="opt in bulkDialogOptions"
+              :key="opt.value"
+              :value="opt.value"
+            >
+              {{ opt.label }}
+            </option>
+          </select>
+        </div>
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -58,10 +108,10 @@
 import { LayoutHeader, ListViewBuilder } from "@/components";
 import {
   EditIcon,
-  IndicatorIcon,
   PinIcon,
   TicketIcon,
   UnpinIcon,
+  WhatsAppIcon,
 } from "@/components/icons";
 import ExportModal from "@/components/ticket/ExportModal.vue";
 import ViewBreadcrumbs from "@/components/ViewBreadcrumbs.vue";
@@ -74,8 +124,9 @@ import { useTicketStatusStore } from "@/stores/ticketStatus";
 import { __ } from "@/translation";
 import { View } from "@/types";
 import { getIcon, isCustomerPortal } from "@/utils";
-import { Badge, FeatherIcon, toast, Tooltip, usePageMeta } from "frappe-ui";
-import { computed, h, onMounted, onUnmounted, reactive, ref } from "vue";
+import { Badge, call, Dialog, FeatherIcon, toast, Tooltip, usePageMeta } from "frappe-ui";
+import { computed, h, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { socket } from "@/socket";
 import { useRoute, useRouter } from "vue-router";
 
 const router = useRouter();
@@ -92,14 +143,181 @@ const {
 } = useView("HD Ticket");
 
 const { $dialog, $socket } = globalStore();
-const { isManager, userId } = useAuthStore();
+const authStore = useAuthStore();
+const { isManager, userId } = authStore;
 
 const listViewRef = ref(null);
 const showExportModal = ref(false);
 
-const { getStatus } = useTicketStatusStore();
+// ── Feature 4: Agent status dots ─────────────────────────────────────────────
+const agentStatusMap = ref<Record<string, string>>({});
+
+async function fetchAgentStatuses() {
+  try {
+    const statuses: any[] = await call(
+      "fitelo_helpdesk.fitelo_helpdesk.api.agent_status.get_all_agent_statuses"
+    );
+    const map: Record<string, string> = {};
+    for (const s of statuses ?? []) {
+      if (s.user) map[s.user] = s.status;
+    }
+    agentStatusMap.value = map;
+  } catch {}
+}
+
+// ── Feature 5: Chat Support summary bar ──────────────────────────────────────
+const CS_VIEWS = ["hd-view-cs-pending", "hd-view-cs-completed"];
+const showSummaryBar = computed(
+  () =>
+    !isCustomerPortal.value &&
+    authStore.isManager &&
+    CS_VIEWS.includes(route.query.view as string)
+);
+const summaryData = ref<{ open_count: number | null; resolved_today: number | null; avg_resolution_mins: number | null }>({
+  open_count: null,
+  resolved_today: null,
+  avg_resolution_mins: null,
+});
+
+async function fetchSummary() {
+  try {
+    const data: any = await call(
+      "fitelo_helpdesk.fitelo_helpdesk.api.dashboards.get_chat_support_summary"
+    );
+    summaryData.value = data;
+  } catch {}
+}
+
+const { getStatus, colorMap: statusColorMap } = useTicketStatusStore();
 
 const listSelections = ref(new Set());
+
+// Bulk action state
+const showBulkDialog = ref(false);
+const bulkDialogType = ref<"assign" | "status" | "priority" | null>(null);
+const bulkDialogValue = ref("");
+const bulkDialogOptions = ref<{ label: string; value: string }[]>([]);
+const bulkLoading = ref(false);
+const bulkSelections = ref<string[]>([]);
+const bulkDialogTitles: Record<string, string> = {
+  assign: __("Assign to Agent"),
+  status: __("Change Status"),
+  priority: __("Change Priority"),
+};
+
+async function openBulkDialog(
+  type: "assign" | "status" | "priority",
+  selections: Set<string>
+) {
+  bulkSelections.value = Array.from(selections);
+  bulkDialogType.value = type;
+  bulkDialogValue.value = "";
+  bulkDialogOptions.value = [];
+  showBulkDialog.value = true;
+
+  if (type === "assign") {
+    const agents = await call("frappe.client.get_list", {
+      doctype: "HD Agent",
+      fields: ["name", "agent_name"],
+      limit: 100,
+    });
+    bulkDialogOptions.value = (agents ?? []).map((a: any) => ({
+      label: a.agent_name || a.name,
+      value: a.name,
+    }));
+  } else if (type === "status") {
+    const statuses = await call("frappe.client.get_list", {
+      doctype: "HD Ticket Status",
+      fields: ["name"],
+      limit: 50,
+    });
+    bulkDialogOptions.value = (statuses ?? []).map((s: any) => ({
+      label: s.name,
+      value: s.name,
+    }));
+  } else if (type === "priority") {
+    const priorities = await call("frappe.client.get_list", {
+      doctype: "HD Ticket Priority",
+      fields: ["name"],
+      limit: 20,
+    });
+    bulkDialogOptions.value = (priorities ?? []).map((p: any) => ({
+      label: p.name,
+      value: p.name,
+    }));
+  }
+}
+
+async function applyBulkAction() {
+  if (!bulkDialogValue.value) {
+    toast.error("Please select a value");
+    return;
+  }
+  bulkLoading.value = true;
+  try {
+    const methodMap: Record<string, string> = {
+      assign: "fitelo_helpdesk.fitelo_helpdesk.api.bulk_actions.bulk_assign",
+      status:
+        "fitelo_helpdesk.fitelo_helpdesk.api.bulk_actions.bulk_update_status",
+      priority:
+        "fitelo_helpdesk.fitelo_helpdesk.api.bulk_actions.bulk_update_priority",
+    };
+    const paramMap: Record<string, Record<string, any>> = {
+      assign: {
+        ticket_names: bulkSelections.value,
+        assignee: bulkDialogValue.value,
+      },
+      status: {
+        ticket_names: bulkSelections.value,
+        status: bulkDialogValue.value,
+      },
+      priority: {
+        ticket_names: bulkSelections.value,
+        priority: bulkDialogValue.value,
+      },
+    };
+    const result: any = await call(
+      methodMap[bulkDialogType.value!],
+      paramMap[bulkDialogType.value!]
+    );
+    toast.success(__("{0} ticket(s) updated", [result.count]));
+    showBulkDialog.value = false;
+    reset(true);
+  } catch {
+    toast.error("Failed to apply bulk action");
+  } finally {
+    bulkLoading.value = false;
+  }
+}
+
+async function confirmBulkDelete(selections: Set<string>) {
+  const names = Array.from(selections);
+  $dialog({
+    title: __("Delete {0} ticket(s)?", [names.length]),
+    message: __("This action is permanent and cannot be undone."),
+    actions: [
+      {
+        label: __("Delete"),
+        variant: "solid",
+        theme: "red",
+        async onClick({ close }) {
+          close();
+          try {
+            const result: any = await call(
+              "fitelo_helpdesk.fitelo_helpdesk.api.bulk_actions.bulk_delete",
+              { ticket_names: names }
+            );
+            toast.success(__("{0} ticket(s) deleted", [result.count]));
+            reset(true);
+          } catch {
+            toast.error("Failed to delete tickets");
+          }
+        },
+      },
+    ],
+  });
+}
+
 const selectBannerActions = [
   {
     label: __("Export"),
@@ -109,6 +327,33 @@ const selectBannerActions = [
       showExportModal.value = true;
     },
   },
+  ...(isManager
+    ? [
+        {
+          label: __("Assign"),
+          icon: "user",
+          onClick: (selections: Set<string>) =>
+            openBulkDialog("assign", selections),
+        },
+        {
+          label: __("Set Status"),
+          icon: "tag",
+          onClick: (selections: Set<string>) =>
+            openBulkDialog("status", selections),
+        },
+        {
+          label: __("Set Priority"),
+          icon: "alert-circle",
+          onClick: (selections: Set<string>) =>
+            openBulkDialog("priority", selections),
+        },
+        {
+          label: __("Delete"),
+          icon: "trash-2",
+          onClick: (selections: Set<string>) => confirmBulkDelete(selections),
+        },
+      ]
+    : []),
 ];
 
 const options = {
@@ -133,13 +378,14 @@ const options = {
         const label = isCustomerPortal.value
           ? status?.["label_customer"]
           : status?.["label_agent"];
+        const color = (status?.["color"] ?? "Default") as keyof typeof statusColorMap;
+        const [textClass, bgClass] = statusColorMap[color] ?? statusColorMap["Default"];
         return h(
-          "div",
-          { class: "flex items-center space-x-2 justify-start w-full" },
-          [
-            h(IndicatorIcon, { class: status?.["parsed_color"] }),
-            h("span", { class: "truncate flex-1" }, label),
-          ]
+          "span",
+          {
+            class: `inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium truncate max-w-full ${textClass} ${bgClass}`,
+          },
+          label ?? item
         );
       },
     },
@@ -157,6 +403,90 @@ const options = {
     },
     resolution_by: {
       custom: ({ row, item }) => handle_resolution_by_field(row, item),
+    },
+    priority: {
+      custom: ({ item }) => {
+        if (!item) return h("span", { class: "text-ink-gray-3 text-xs" }, "—");
+        const colorMap: Record<string, string> = {
+          Urgent: "text-red-600 bg-red-50 border-red-200",
+          High:   "text-orange-600 bg-orange-50 border-orange-200",
+          Medium: "text-amber-600 bg-amber-50 border-amber-200",
+          Low:    "text-green-600 bg-green-50 border-green-200",
+        };
+        return h("span", {
+          class: `inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border ${colorMap[item] || "text-ink-gray-6 border-outline-gray-2"}`,
+        }, item);
+      },
+    },
+    ticket_source: {
+      custom: ({ item }) => {
+        const sourceMap: Record<string, { icon: any; color: string; pill: string; label: string }> = {
+          WhatsApp:         { icon: WhatsAppIcon, color: "text-green-600",  pill: "bg-green-50 border border-green-200",  label: "WhatsApp" },
+          "Waaku WhatsApp": { icon: WhatsAppIcon, color: "text-purple-600", pill: "bg-purple-50 border border-purple-200", label: "Waaku WA" },
+          Email:            { icon: "mail",       color: "text-blue-600",   pill: "bg-blue-50 border border-blue-200",    label: "Email" },
+          Phone:            { icon: "phone",      color: "text-purple-500", pill: "bg-purple-50 border border-purple-200", label: "Phone" },
+          Portal:           { icon: "globe",      color: "text-gray-500",   pill: "bg-gray-100 border border-gray-200",   label: "Portal" },
+        };
+        const src = sourceMap[item];
+        if (!src) return h("span", { class: "text-ink-gray-4 text-xs" }, item || "—");
+        const iconEl =
+          item === "WhatsApp" || item === "Waaku WhatsApp"
+            ? h(WhatsAppIcon, { class: `h-3 w-3 ${src.color}` })
+            : h(FeatherIcon, { name: src.icon, class: `h-3 w-3 ${src.color}` });
+        return h(
+          "span",
+          { class: `inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${src.color} ${src.pill}` },
+          [iconEl, src.label]
+        );
+      },
+    },
+    _assign: {
+      custom: ({ item }) => {
+        if (!item) return h("span", { class: "text-ink-gray-4 text-xs italic" }, "Unassigned");
+        let emails: string[] = [];
+        try { emails = JSON.parse(item); } catch { emails = []; }
+        if (!emails.length) return h("span", { class: "text-ink-gray-4 text-xs italic" }, "Unassigned");
+        const parts = emails.map((e) => {
+          const local = (e.split("@")[0] ?? "").replace(/[._-]/g, " ");
+          const first = local.split(" ")[0] ?? local;
+          const name = first.charAt(0).toUpperCase() + first.slice(1);
+          const status = agentStatusMap.value[e];
+          const dotColor =
+            status === "Online" ? "#22c55e"
+            : !status || status === "Offline" ? "#9ca3af"
+            : "#f59e0b";
+          return h("span", { class: "inline-flex items-center gap-1" }, [
+            h("span", {
+              class: "inline-block w-2 h-2 rounded-full flex-shrink-0",
+              style: `background:${dotColor}; margin-top:1px`,
+              title: status ?? "Offline",
+            }),
+            h("span", {}, name),
+          ]);
+        });
+        return h("span", { class: "text-sm text-ink-gray-8 inline-flex items-center gap-2 truncate" }, parts);
+      },
+    },
+    creation: {
+      custom: ({ row, item }) => {
+        if (!item) return h("span", { class: "text-ink-gray-4 text-xs" }, "—");
+        const resolvedStatuses = ["Resolved", "Closed"];
+        const isResolved = resolvedStatuses.includes(row.status);
+        const ageHours = dayjs().diff(dayjs(item), "hour");
+        const isOverdue = !isResolved && ageHours >= 24;
+        return h("div", { class: "flex flex-col gap-0.5" }, [
+          h(Tooltip,
+            { text: dayjs(item).format("DD MMM YYYY, h:mm A") },
+            () => h("span", { class: "text-xs text-ink-gray-6" }, dayjs(item).fromNow())
+          ),
+          isOverdue
+            ? h("span", {
+                class: "text-[10px] font-semibold px-1 py-0.5 rounded w-fit",
+                style: "background:#FEE2E2; color:#DC2626",
+              }, `${ageHours}h overdue`)
+            : null,
+        ].filter(Boolean));
+      },
     },
   },
   isCustomerPortal: isCustomerPortal.value,
@@ -562,6 +892,31 @@ function resetState() {
   selectedView = null;
 }
 
+// ── Feature 7: Browser notifications + sound ─────────────────────────────────
+function playBeep() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = "sine";
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.35);
+    ctx.close();
+  } catch {}
+}
+
+function showBrowserNotification(title: string, body: string) {
+  playBeep();
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification(title, { body, icon: "/assets/helpdesk/desk/favicon.ico", silent: true });
+  }
+}
+
 onMounted(() => {
   if (!route.query.view) {
     currentView.value = {
@@ -569,16 +924,52 @@ onMounted(() => {
       icon: LucideAlignJustify,
     };
   }
+  // Request browser notification permission on first mount
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission();
+  }
   if (!isCustomerPortal.value) {
     $socket.on("helpdesk:new-ticket", () => {
       listViewRef.value?.reload();
+      // Notify managers about incoming CS tickets
+      if (authStore.isManager && authStore.isChatSupportMember) {
+        showBrowserNotification("New Ticket", "A new ticket has arrived in Dietician Chat Support");
+      }
+    });
+    $socket.on("helpdesk:ticket-update", () => {
+      listViewRef.value?.reload();
+    });
+    socket.on("ticket_assigned", (data: any) => {
+      listViewRef.value?.reload();
+      // Notify agent when a ticket is assigned to them
+      if (!authStore.isManager) {
+        showBrowserNotification(
+          "Ticket Assigned",
+          data?.subject ? `"${data.subject}" has been assigned to you` : "A ticket has been assigned to you"
+        );
+      }
+    });
+    // Feature 4: agent status dots
+    fetchAgentStatuses();
+    socket.on("agent_status_changed", (data: any) => {
+      if (data?.user) {
+        agentStatusMap.value = { ...agentStatusMap.value, [data.user]: data.status };
+      }
     });
   }
 });
 
+// Feature 5: fetch summary when view changes to a CS view
+watch(showSummaryBar, (val) => {
+  if (val) fetchSummary();
+}, { immediate: true });
+
 onUnmounted(() => {
   if (!isCustomerPortal.value) {
     $socket.off("helpdesk:new-ticket");
+    $socket.off("helpdesk:ticket-update");
+    socket.off("ticket_assigned");
+    socket.off("agent_status_changed");
   }
 });
 

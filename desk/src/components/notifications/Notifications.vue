@@ -37,49 +37,67 @@
       </div>
     </div>
     <div class="divide-y text-base" v-if="notificationStore.data.length">
-      <RouterLink
+      <div
         v-for="n in notificationStore.data"
         :key="n.name"
-        class="flex cursor-pointer items-start gap-3.5 px-5 py-2.5 hover:bg-gray-100"
-        :to="getRoute(n)"
-        @click="
-          () => {
-            handleNotificationClick(n);
-          }
-        "
+        class="group relative"
       >
-        <UserAvatar :name="n.user_from" />
-        <span>
-          <div class="mb-2 leading-5">
-            <span class="space-x-1 text-gray-700">
-              <span
-                class="font-medium text-gray-900"
-                v-if="n.notification_type !== 'Reaction' || !n.message"
-              >
-                {{ n.user_from }}
+        <RouterLink
+          class="flex cursor-pointer items-start gap-3.5 px-5 py-2.5 hover:bg-gray-100"
+          :to="getRoute(n)"
+          @click="() => handleNotificationClick(n)"
+        >
+          <UserAvatar :name="n.user_from" />
+          <span>
+            <div class="mb-2 leading-5">
+              <span class="space-x-1 text-gray-700">
+                <!-- Custom types: just show the message directly -->
+                <span
+                  v-if="n.notification_type === 'Customer Reply' || n.notification_type === 'WhatsApp Message'"
+                  class="text-gray-800"
+                >
+                  {{ n.message }}
+                </span>
+                <!-- Base types -->
+                <template v-else>
+                  <span
+                    class="font-medium text-gray-900"
+                    v-if="n.notification_type !== 'Reaction' || !n.message"
+                  >
+                    {{ n.user_from }}
+                  </span>
+                  <span v-if="n.notification_type === 'Mention'"
+                    >mentioned you in ticket</span
+                  >
+                  <span v-if="n.notification_type === 'Assignment'"
+                    >assigned you a ticket</span
+                  >
+                  <span v-if="n.notification_type === 'Reaction'">
+                    {{ n.message || "has reopened the ticket" }}
+                  </span>
+                </template>
               </span>
-              <span v-if="n.notification_type === 'Mention'"
-                >mentioned you in ticket</span
-              >
-              <span v-if="n.notification_type === 'Assignment'"
-                >assigned you a ticket</span
-              >
-              <span v-if="n.notification_type === 'Reaction'">
-                {{ n.message || "has reopened the ticket" }}
+              <span class="font-medium text-gray-900"
+                >&nbsp{{ n.reference_ticket }}
               </span>
-            </span>
-            <span class="font-medium text-gray-900"
-              >&nbsp{{ n.reference_ticket }}
-            </span>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="text-sm text-gray-600">
-              {{ dayjs.tz(n.creation).fromNow() }}
             </div>
-            <div v-if="!n.read" class="h-1.5 w-1.5 rounded-full bg-blue-400" />
-          </div>
-        </span>
-      </RouterLink>
+            <div class="flex items-center gap-2">
+              <div class="text-sm text-gray-600">
+                {{ dayjs.tz(n.creation).fromNow() }}
+              </div>
+              <div v-if="!n.read" class="h-1.5 w-1.5 rounded-full bg-blue-400" />
+            </div>
+          </span>
+        </RouterLink>
+        <!-- Per-notification dismiss button -->
+        <button
+          class="absolute right-3 top-3 hidden rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700 group-hover:flex items-center justify-center"
+          @click.prevent.stop="notificationStore.dismiss(n.name)"
+          title="Dismiss"
+        >
+          <LucideX class="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
     <div
       class="p-5 text-center text-gray-500 flex flex-col items-center justify-center gap-2 mt-20"
@@ -147,6 +165,14 @@ function getRoute(n: Notification) {
         hash: n.reference_comment
           ? "#comment-" + n.reference_comment
           : undefined,
+      };
+    case "Customer Reply":
+    case "WhatsApp Message":
+      return {
+        name: "TicketAgent",
+        params: {
+          ticketId: n.reference_ticket,
+        },
       };
   }
 }
