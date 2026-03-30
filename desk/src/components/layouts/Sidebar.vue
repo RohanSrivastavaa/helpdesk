@@ -396,7 +396,8 @@ const allViews = computed(() => {
       opened: true,
       views: parseViews(
         (publicViews.value || []).filter((v) =>
-          ["Pending Tickets", "Completed Tickets"].includes(v.label)
+          ["Pending Tickets", "Completed Tickets"].includes(v.label) &&
+          !["hd-view-cs-pending", "hd-view-cs-completed"].includes(v.name)
         )
       ),
     }];
