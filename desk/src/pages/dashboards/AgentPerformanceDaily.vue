@@ -76,7 +76,7 @@
       </div>
 
       <template v-else>
-        <ShiftBlock class="flex-1 min-h-0" title="Shift 1 — 6:00–14:59" :shift-rows="shift1Rows" :dates="dates" :matrix="shift1Matrix" />
+        <ShiftBlock class="flex-1 min-h-0" title="Shift 1 — 5:00–14:59" :shift-rows="shift1Rows" :dates="dates" :matrix="shift1Matrix" />
         <ShiftBlock class="flex-1 min-h-0" title="Shift 2 — 15:00–23:59" :shift-rows="shift2Rows" :dates="dates" :matrix="shift2Matrix" />
 
         <div class="flex items-center gap-5 text-xs text-ink-gray-4 pb-2">

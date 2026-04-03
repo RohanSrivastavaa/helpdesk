@@ -58,7 +58,7 @@
       </div>
 
       <template v-else>
-        <TimingBlock class="flex-1 min-h-0" title="Shift 1 — 6:00–14:59" :shift="1"
+        <TimingBlock class="flex-1 min-h-0" title="Shift 1 — 5:00–14:59" :shift="1"
           :shift-rows="shift1Rows" :dates="dates" :matrix="shift1Matrix" />
         <TimingBlock class="flex-1 min-h-0" title="Shift 2 — 15:00–23:59" :shift="2"
           :shift-rows="shift2Rows" :dates="dates" :matrix="shift2Matrix" />
@@ -70,7 +70,7 @@
             ⚠ Late login / late first ticket / early end
           </span>
           <span class="text-ink-gray-3">
-            Shift 1: flag if login or 1st ticket &gt; 08:30, or last ticket &lt; 14:00 &nbsp;·&nbsp;
+            Shift 1: flag if login or 1st ticket &gt; 06:30, or last ticket &lt; 14:00 &nbsp;·&nbsp;
             Shift 2: flag if login or 1st ticket &gt; 16:00, or last ticket &lt; 23:00
           </span>
         </div>
@@ -239,7 +239,7 @@ const TimingBlock = defineComponent({
     function isLateStart(t: string | null): boolean {
       const m = toMins(t);
       if (m === null) return false;
-      return props.shift === 1 ? m > 8 * 60 + 30 : m > 16 * 60;
+      return props.shift === 1 ? m > 6 * 60 + 30 : m > 16 * 60;
     }
 
     function isEarlyEnd(t: string | null): boolean {
