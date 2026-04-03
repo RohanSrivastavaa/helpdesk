@@ -296,7 +296,7 @@ function onDispositionConfirm(disposition: string) {
     {
       onSuccess() {
         activities.value.reload();
-        router.push({ name: "TicketsAgent", query: { view: "hd-view-cs-pending" } });
+        window.location.replace("/helpdesk/tickets?view=hd-view-cs-pending");
       },
     }
   );
