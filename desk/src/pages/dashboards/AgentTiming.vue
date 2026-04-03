@@ -145,10 +145,10 @@ async function load() {
 }
 
 function downloadCSV() {
-  const headers = ["Agent", "Date", "Shift", "First Resolved", "Last Resolved", "Count"];
+  const headers = ["Agent", "Date", "Shift", "Login", "1st Resolved", "Last Resolved", "Count"];
   const csvRows = [headers.map((h) => `"${h}"`).join(",")];
   for (const r of rows.value) {
-    csvRows.push([r.agent_name, r.date, r.shift, r.first_resolved ?? "", r.last_resolved ?? "", r.count]
+    csvRows.push([r.agent_name, r.date, r.shift, r.login_time ?? "", r.first_resolved ?? "", r.last_resolved ?? "", r.count]
       .map((v) => `"${String(v).replace(/"/g, '""')}"`)
       .join(","));
   }
@@ -282,8 +282,8 @@ const TimingBlock = defineComponent({
             h("tr", { class: "bg-surface-gray-1 border-b border-outline-gray-2" }, [
               ...props.dates.flatMap((d) => [
                 h("th", { key: d+"-lg", class: "px-3 py-1.5 text-center text-ink-gray-4 font-medium whitespace-nowrap border-l border-outline-gray-2 min-w-[68px]" }, "Login"),
-                h("th", { key: d+"-f",  class: "px-3 py-1.5 text-center text-ink-gray-4 font-medium whitespace-nowrap min-w-[68px]" }, "1st Ticket"),
-                h("th", { key: d+"-l",  class: "px-3 py-1.5 text-center text-ink-gray-4 font-medium whitespace-nowrap min-w-[68px]" }, "Last Ticket"),
+                h("th", { key: d+"-f",  class: "px-3 py-1.5 text-center text-ink-gray-4 font-medium whitespace-nowrap min-w-[68px]" }, "1st Resolved"),
+                h("th", { key: d+"-l",  class: "px-3 py-1.5 text-center text-ink-gray-4 font-medium whitespace-nowrap min-w-[68px]" }, "Last Resolved"),
                 h("th", { key: d+"-c",  class: "px-3 py-1.5 text-center text-ink-gray-4 font-medium whitespace-nowrap border-r border-outline-gray-2 min-w-[44px]" }, "#"),
               ]),
             ]),
