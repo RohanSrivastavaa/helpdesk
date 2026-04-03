@@ -3,8 +3,8 @@
     <LayoutHeader>
       <template #left-header>
         <div class="flex items-center gap-2">
-          <LucideTimer class="h-5 w-5" style="color:#FF8643" />
-          <span class="text-lg font-semibold text-ink-gray-9">Agent Timing</span>
+          <LucideTimer class="h-4 w-4 text-ink-gray-5" />
+          <span class="text-base font-semibold text-ink-gray-9">Agent Timing</span>
         </div>
       </template>
       <template #right-header>
@@ -45,7 +45,7 @@
       </template>
     </LayoutHeader>
 
-    <div class="flex-1 overflow-auto px-6 py-5 flex flex-col gap-6">
+    <div class="flex-1 min-h-0 px-6 py-5 flex flex-col gap-6 overflow-hidden">
       <div v-if="loading" class="flex flex-col items-center justify-center h-48 gap-3">
         <div class="h-8 w-8 rounded-full border-2 border-t-transparent animate-spin" style="border-color:#FF8643; border-top-color:transparent" />
         <p class="text-sm text-ink-gray-5">Loading data…</p>
@@ -58,20 +58,20 @@
       </div>
 
       <template v-else>
-        <TimingBlock title="Shift 1 — 6:00–14:59" :shift="1"
+        <TimingBlock class="flex-1 min-h-0" title="Shift 1 — 6:00–14:59" :shift="1"
           :shift-rows="shift1Rows" :dates="dates" :matrix="shift1Matrix" />
-        <TimingBlock title="Shift 2 — 15:00–23:59" :shift="2"
+        <TimingBlock class="flex-1 min-h-0" title="Shift 2 — 15:00–23:59" :shift="2"
           :shift-rows="shift2Rows" :dates="dates" :matrix="shift2Matrix" />
 
         <!-- Legend -->
-        <div class="flex items-center gap-5 text-xs text-ink-gray-5 pb-2">
+        <div class="flex items-center gap-5 text-xs text-ink-gray-4 pb-2">
           <span class="flex items-center gap-1.5">
-            <span class="inline-block w-3 h-3 rounded" style="background:#FFB6C1" />
-            Late start / Early end
+            <span class="inline-block w-2.5 h-2.5 rounded" style="background:#FFB6C1" />
+            ⚠ Late login / late first ticket / early end
           </span>
           <span class="text-ink-gray-3">
-            Shift 1: flag if 1st resolved &gt; 08:30 or last &lt; 14:00 &nbsp;·&nbsp;
-            Shift 2: flag if 1st resolved &gt; 16:00 or last &lt; 23:00
+            Shift 1: flag if login or 1st ticket &gt; 08:30, or last ticket &lt; 14:00 &nbsp;·&nbsp;
+            Shift 2: flag if login or 1st ticket &gt; 16:00, or last ticket &lt; 23:00
           </span>
         </div>
       </template>
@@ -113,6 +113,7 @@ function applyPreset(p: { label: string; days: number }) {
 interface TimingRow {
   agent: string; agent_name: string;
   date: string; shift: number;
+  login_time: string | null;
   first_resolved: string | null; last_resolved: string | null;
   count: number;
 }
@@ -255,36 +256,35 @@ const TimingBlock = defineComponent({
     const EMPTY = {};
     const stickyStyle = "box-shadow: 2px 0 6px rgba(0,0,0,0.07)";
 
-    return () => h("div", { class: "rounded-xl overflow-hidden border border-outline-gray-2 shadow-sm" }, [
-      h("div", {
-        class: "flex items-center gap-2 px-4 py-2.5",
-        style: "background: linear-gradient(135deg, #FF8643 0%, #e8773a 100%)",
-      }, [
-        h("span", { class: "text-white text-sm font-semibold" }, props.title),
-        h("span", { class: "ml-auto text-xs text-white/70 font-normal" },
+    return () => h("div", { class: "rounded-lg overflow-hidden border border-outline-gray-2 flex flex-col min-h-0" }, [
+      h("div", { class: "flex items-center gap-2 px-4 py-2 bg-surface-gray-2 border-b border-outline-gray-2 flex-shrink-0" }, [
+        h("span", { class: "text-xs font-semibold text-ink-gray-7 uppercase tracking-wide" }, props.title),
+        h("span", { class: "ml-auto text-xs text-ink-gray-4" },
           `${props.shiftRows.length} agent${props.shiftRows.length !== 1 ? 's' : ''}`),
       ]),
 
-      h("div", { class: "overflow-x-auto bg-surface-white" }, [
+      h("div", { class: "flex-1 min-h-0 overflow-auto bg-white" }, [
         h("table", { class: "text-xs border-collapse", style: "min-width: max-content; width: 100%" }, [
-          h("thead", {}, [
+          h("thead", { style: "position: sticky; top: 0; z-index: 30" }, [
             h("tr", { class: "bg-surface-gray-1 border-b border-outline-gray-2" }, [
               h("th", {
                 rowspan: 2,
-                class: "sticky left-0 z-20 bg-surface-gray-1 px-4 py-2.5 text-left text-xs font-semibold text-ink-gray-5 uppercase tracking-wide border-r border-outline-gray-2 min-w-[180px]",
+                class: "sticky left-0 z-20 bg-surface-gray-1 px-4 py-2 text-left text-xs font-semibold text-ink-gray-5 uppercase tracking-wide border-r border-outline-gray-2 min-w-[180px]",
                 style: stickyStyle,
               }, "Agent"),
               ...props.dates.flatMap((d) => [
                 h("th", {
-                  colspan: 2,
-                  class: "px-4 py-2.5 text-center font-semibold text-ink-gray-7 border-r border-outline-gray-2 last:border-0 whitespace-nowrap min-w-[160px]",
+                  colspan: 4,
+                  class: "px-4 py-2 text-center font-semibold text-ink-gray-6 border-r border-outline-gray-2 whitespace-nowrap",
                 }, fmtCol(d)),
               ]),
             ]),
             h("tr", { class: "bg-surface-gray-1 border-b border-outline-gray-2" }, [
               ...props.dates.flatMap((d) => [
-                h("th", { key: d+"-f", class: "px-4 py-1.5 text-center text-ink-gray-4 font-medium whitespace-nowrap border-l border-outline-gray-2" }, "1st Resolved"),
-                h("th", { key: d+"-l", class: "px-4 py-1.5 text-center text-ink-gray-4 font-medium whitespace-nowrap border-r border-outline-gray-2" }, "Last Resolved"),
+                h("th", { key: d+"-lg", class: "px-3 py-1.5 text-center text-ink-gray-4 font-medium whitespace-nowrap border-l border-outline-gray-2 min-w-[68px]" }, "Login"),
+                h("th", { key: d+"-f",  class: "px-3 py-1.5 text-center text-ink-gray-4 font-medium whitespace-nowrap min-w-[68px]" }, "1st Ticket"),
+                h("th", { key: d+"-l",  class: "px-3 py-1.5 text-center text-ink-gray-4 font-medium whitespace-nowrap min-w-[68px]" }, "Last Ticket"),
+                h("th", { key: d+"-c",  class: "px-3 py-1.5 text-center text-ink-gray-4 font-medium whitespace-nowrap border-r border-outline-gray-2 min-w-[44px]" }, "#"),
               ]),
             ]),
           ]),
@@ -292,12 +292,12 @@ const TimingBlock = defineComponent({
             ...props.shiftRows.map((agentRow) =>
               h("tr", { key: agentRow.agent, class: "border-b border-outline-gray-2 last:border-0 hover:bg-surface-gray-1 transition-colors" }, [
                 h("td", {
-                  class: "sticky left-0 z-10 bg-white px-4 py-2.5 border-r border-outline-gray-2 whitespace-nowrap",
+                  class: "sticky left-0 z-10 bg-white px-4 py-2 border-r border-outline-gray-2 whitespace-nowrap",
                   style: stickyStyle,
                 }, [
-                  h("div", { class: "flex items-center gap-2.5" }, [
+                  h("div", { class: "flex items-center gap-2" }, [
                     h("div", {
-                      class: "flex items-center justify-center w-7 h-7 rounded-full text-white text-xs font-bold flex-shrink-0",
+                      class: "flex items-center justify-center w-6 h-6 rounded-full text-white text-xs font-semibold flex-shrink-0",
                       style: `background:${avatarColor(agentRow.agent_name)}`,
                     }, initials(agentRow.agent_name)),
                     h("span", { class: "font-medium text-ink-gray-8" }, agentRow.agent_name),
@@ -307,21 +307,38 @@ const TimingBlock = defineComponent({
                   const c = cell(agentRow.agent, d);
                   const firstFlagged = isLateStart(c?.first_resolved ?? null);
                   const lastFlagged  = isEarlyEnd(c?.last_resolved ?? null);
+                  const loginFlagged = isLateStart(c?.login_time ?? null);
+                  const noTickets    = c && c.count === 0;
                   return [
+                    // Login time
                     h("td", {
-                      class: "px-4 py-2.5 text-center border-l border-outline-gray-2 font-mono",
+                      class: "px-3 py-2 text-center border-l border-outline-gray-2 font-mono",
+                      style: loginFlagged ? PINK : { color: "#6b7280" },
+                    }, [
+                      fmtTime(c?.login_time ?? null),
+                      loginFlagged ? h("span", { class: "ml-0.5 text-[10px]" }, "⚠") : null,
+                    ]),
+                    // 1st ticket resolved
+                    h("td", {
+                      class: "px-3 py-2 text-center font-mono text-ink-gray-7",
                       style: firstFlagged ? PINK : EMPTY,
                     }, [
                       fmtTime(c?.first_resolved ?? null),
-                      firstFlagged ? h("span", { class: "ml-1 text-[10px]" }, "⚠") : null,
+                      firstFlagged ? h("span", { class: "ml-0.5 text-[10px]" }, "⚠") : null,
                     ]),
+                    // Last ticket resolved
                     h("td", {
-                      class: "px-4 py-2.5 text-center border-r border-outline-gray-2 font-mono",
+                      class: "px-3 py-2 text-center font-mono text-ink-gray-7",
                       style: lastFlagged ? PINK : EMPTY,
                     }, [
                       fmtTime(c?.last_resolved ?? null),
-                      lastFlagged ? h("span", { class: "ml-1 text-[10px]" }, "⚠") : null,
+                      lastFlagged ? h("span", { class: "ml-0.5 text-[10px]" }, "⚠") : null,
                     ]),
+                    // Count
+                    h("td", {
+                      class: "px-3 py-2 text-center border-r border-outline-gray-2 font-semibold tabular-nums",
+                      style: noTickets ? { color: "#ef4444" } : { color: "#374151" },
+                    }, c ? (c.count ?? "—") : "—"),
                   ];
                 }),
               ])

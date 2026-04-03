@@ -11,6 +11,19 @@ def dismiss(name: str):
 
 
 @frappe.whitelist()
+def delete_all():
+    """Delete all notifications for the current user."""
+    names = frappe.get_all(
+        "HD Notification",
+        filters={"user_to": frappe.session.user},
+        pluck="name",
+    )
+    for name in names:
+        frappe.delete_doc("HD Notification", name, ignore_permissions=True)
+    frappe.db.commit()
+
+
+@frappe.whitelist()
 def clear(ticket: str | int | None = None, comment: str | None = None):
     """
     Mark notifications as read. No arguments will clear all notifications for `user`.

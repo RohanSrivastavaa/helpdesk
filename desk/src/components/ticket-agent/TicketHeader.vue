@@ -289,8 +289,17 @@ function submitStatus(status: string, extraFields: Record<string, string> = {}) 
 
 function onDispositionConfirm(disposition: string) {
   showDispositionModal.value = false;
-  submitStatus(pendingStatus.value, { disposition });
+  const status = pendingStatus.value;
   pendingStatus.value = "";
+  ticket.value.setValue.submit(
+    { status, disposition },
+    {
+      onSuccess() {
+        activities.value.reload();
+        router.push({ name: "TicketsAgent", query: { view: "hd-view-cs-pending" } });
+      },
+    }
+  );
 }
 
 const { notifyTicketUpdate } = useNotifyTicketUpdate(ticket.value?.name);

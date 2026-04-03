@@ -3,8 +3,8 @@
     <LayoutHeader>
       <template #left-header>
         <div class="flex items-center gap-2">
-          <LucidePieChart class="h-5 w-5" style="color:#FF8643" />
-          <span class="text-lg font-semibold text-ink-gray-9">Reason Breakdown</span>
+          <LucidePieChart class="h-4 w-4 text-ink-gray-5" />
+          <span class="text-base font-semibold text-ink-gray-9">Reason Breakdown</span>
         </div>
       </template>
       <template #right-header>
@@ -48,7 +48,7 @@
       </template>
     </LayoutHeader>
 
-    <div class="flex-1 overflow-auto px-6 py-5">
+    <div class="flex-1 min-h-0 overflow-auto px-6 py-5">
       <div v-if="loading" class="flex flex-col items-center justify-center h-48 gap-3">
         <div class="h-8 w-8 rounded-full border-2 border-t-transparent animate-spin" style="border-color:#FF8643; border-top-color:transparent" />
         <p class="text-sm text-ink-gray-5">Loading data…</p>
@@ -63,59 +63,64 @@
       <div v-else class="overflow-x-auto rounded-xl border border-outline-gray-2 shadow-sm bg-surface-white">
         <table class="text-sm border-collapse" style="min-width: max-content">
           <thead>
-            <tr class="border-b border-outline-gray-2">
-              <th class="sticky left-0 z-20 bg-surface-gray-1 px-4 py-3 text-left text-xs font-semibold text-ink-gray-5 uppercase tracking-wide border-r border-outline-gray-2 min-w-[160px]"
+            <tr class="border-b border-outline-gray-2 bg-surface-gray-1">
+              <th class="sticky left-0 z-20 bg-surface-gray-1 px-4 py-2.5 text-left text-xs font-semibold text-ink-gray-5 uppercase tracking-wide border-r border-outline-gray-2 min-w-[160px]"
                 style="box-shadow: 2px 0 4px rgba(0,0,0,0.06)">
                 Reason
               </th>
-              <th class="sticky z-20 bg-surface-gray-1 px-4 py-3 text-left text-xs font-semibold text-ink-gray-5 uppercase tracking-wide border-r border-outline-gray-2 min-w-[160px]"
+              <th class="sticky z-20 bg-surface-gray-1 px-4 py-2.5 text-left text-xs font-semibold text-ink-gray-5 uppercase tracking-wide border-r border-outline-gray-2 min-w-[160px]"
                 :style="{ left: '160px', boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }">
                 Sub-reason
               </th>
               <th v-for="d in dates" :key="d"
-                class="px-3 py-3 text-center text-xs font-semibold text-ink-gray-5 uppercase tracking-wide whitespace-nowrap border-r border-outline-gray-2 last:border-0 min-w-[76px]">
+                class="px-3 py-2.5 text-center text-xs font-semibold text-ink-gray-5 uppercase tracking-wide whitespace-nowrap border-r border-outline-gray-2 min-w-[72px]">
                 {{ fmtDateCol(d) }}
+              </th>
+              <th class="px-4 py-2.5 text-center text-xs font-semibold text-ink-gray-6 uppercase tracking-wide whitespace-nowrap bg-surface-gray-2 min-w-[72px]">
+                Total
               </th>
             </tr>
           </thead>
           <tbody>
-            <!-- Totals row -->
-            <tr class="border-b border-outline-gray-2">
-              <td class="sticky left-0 z-10 bg-surface-gray-1 px-4 py-2.5 border-r border-outline-gray-2 text-xs font-bold text-ink-gray-8 uppercase tracking-wide"
-                style="box-shadow: 2px 0 4px rgba(0,0,0,0.06)">
-                TOTAL
-              </td>
-              <td class="sticky z-10 bg-surface-gray-1 px-4 py-2.5 border-r border-outline-gray-2 text-ink-gray-4"
+            <!-- Column totals row -->
+            <tr class="border-b border-outline-gray-2 bg-surface-gray-1">
+              <td class="sticky left-0 z-10 bg-surface-gray-1 px-4 py-2 border-r border-outline-gray-2 text-xs font-semibold text-ink-gray-7 uppercase tracking-wide"
+                style="box-shadow: 2px 0 4px rgba(0,0,0,0.06)">Total</td>
+              <td class="sticky z-10 bg-surface-gray-1 px-4 py-2 border-r border-outline-gray-2 text-ink-gray-4"
                 :style="{ left: '160px', boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }">—</td>
               <td v-for="d in dates" :key="d"
-                class="px-3 py-2.5 text-center border-r border-outline-gray-2 last:border-0 font-bold text-sm"
-                :style="cellStyle(dateTotal(d))">
+                class="px-3 py-2 text-center border-r border-outline-gray-2 font-semibold text-ink-gray-7">
                 {{ dateTotal(d) || '—' }}
+              </td>
+              <td class="px-4 py-2 text-center font-semibold text-ink-gray-8 bg-surface-gray-2">
+                {{ grandTotal || '—' }}
               </td>
             </tr>
 
-            <!-- Data rows grouped by reason -->
+            <!-- Data rows grouped by reason, sorted by total desc -->
             <template v-for="group in groupedRows" :key="group.reason">
               <tr v-for="(sub, si) in group.subs" :key="sub.subreason"
                 class="border-b border-outline-gray-2 last:border-0 hover:bg-surface-gray-1 transition-colors">
-                <td class="sticky left-0 z-10 bg-white px-4 py-2.5 border-r border-outline-gray-2 font-medium text-ink-gray-8 text-sm"
-                  :class="si === 0 ? 'border-t-2' : ''"
-                  :style="{ borderTopColor: si === 0 ? '#e5e7eb' : undefined, boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }">
-                  <span v-if="si === 0" class="flex items-center gap-1.5">
-                    <span class="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:#FF8643" />
-                    {{ group.reason }}
-                  </span>
+                <td class="sticky left-0 z-10 bg-white px-4 py-2 border-r border-outline-gray-2 font-medium text-ink-gray-8 text-sm"
+                  :class="si === 0 ? 'border-t border-outline-gray-2' : ''"
+                  :style="{ boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }">
+                  <span v-if="si === 0">{{ group.reason }}</span>
                 </td>
-                <td class="sticky z-10 bg-white px-4 py-2.5 border-r border-outline-gray-2 text-ink-gray-6 text-sm"
-                  :class="si === 0 ? 'border-t-2' : ''"
-                  :style="{ left: '160px', borderTopColor: si === 0 ? '#e5e7eb' : undefined, boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }">
+                <td class="sticky z-10 bg-white px-4 py-2 border-r border-outline-gray-2 text-ink-gray-6 text-sm"
+                  :class="si === 0 ? 'border-t border-outline-gray-2' : ''"
+                  :style="{ left: '160px', boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }">
                   {{ sub.subreason }}
                 </td>
                 <td v-for="d in dates" :key="d"
-                  class="px-3 py-2.5 text-center border-r border-outline-gray-2 last:border-0 text-sm"
-                  :class="si === 0 ? 'border-t-2' : ''"
-                  :style="{ ...cellStyle(lookup(group.reason, sub.subreason, d)), borderTopColor: si === 0 ? '#e5e7eb' : undefined }">
+                  class="px-3 py-2 text-center border-r border-outline-gray-2 text-sm tabular-nums"
+                  :class="si === 0 ? 'border-t border-outline-gray-2' : ''"
+                  :style="cellStyle(lookup(group.reason, sub.subreason, d))">
                   {{ lookup(group.reason, sub.subreason, d) || '—' }}
+                </td>
+                <!-- Row total -->
+                <td class="px-4 py-2 text-center font-semibold text-ink-gray-8 tabular-nums bg-surface-gray-1"
+                  :class="si === 0 ? 'border-t border-outline-gray-2' : ''">
+                  {{ sub.total || '—' }}
                 </td>
               </tr>
             </template>
@@ -124,19 +129,20 @@
       </div>
 
       <!-- Legend -->
-      <div v-if="rows.length" class="mt-3 flex items-center gap-4 text-xs text-ink-gray-5">
+      <div v-if="rows.length" class="mt-3 flex items-center gap-4 text-xs text-ink-gray-4">
         <span class="flex items-center gap-1.5">
-          <span class="inline-block w-3 h-3 rounded" style="background:#FF8643" />
-          &gt; 200 tickets
+          <span class="inline-block w-2.5 h-2.5 rounded bg-ink-gray-7" />
+          &gt; 200
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="inline-block w-3 h-3 rounded" style="background:#FFE6CF" />
-          50–200 tickets
+          <span class="inline-block w-2.5 h-2.5 rounded bg-ink-gray-4" />
+          50–200
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="inline-block w-3 h-3 rounded border border-outline-gray-2" style="background:#fff" />
-          &lt; 50 tickets
+          <span class="inline-block w-2.5 h-2.5 rounded border border-outline-gray-2 bg-white" />
+          &lt; 50
         </span>
+        <span class="text-ink-gray-3">sorted by total volume ↓</span>
       </div>
     </div>
   </div>
@@ -250,7 +256,19 @@ function dateTotal(date: string): number {
   return rows.value.filter((r) => r.date === date).reduce((s, r) => s + r.count, 0);
 }
 
-interface GroupRow { reason: string; subs: { subreason: string }[] }
+function subTotal(reason: string, subreason: string): number {
+  return rows.value
+    .filter((r) => r.reason === reason && r.subreason === subreason)
+    .reduce((s, r) => s + r.count, 0);
+}
+
+function reasonTotal(reason: string): number {
+  return rows.value.filter((r) => r.reason === reason).reduce((s, r) => s + r.count, 0);
+}
+
+const grandTotal = computed(() => rows.value.reduce((s, r) => s + r.count, 0));
+
+interface GroupRow { reason: string; total: number; subs: { subreason: string; total: number }[] }
 const groupedRows = computed<GroupRow[]>(() => {
   const groups: Record<string, Set<string>> = {};
   for (const r of rows.value) {
@@ -258,11 +276,14 @@ const groupedRows = computed<GroupRow[]>(() => {
     groups[r.reason].add(r.subreason);
   }
   return Object.entries(groups)
-    .sort(([a], [b]) => a.localeCompare(b))
     .map(([reason, subs]) => ({
       reason,
-      subs: [...subs].sort().map((s) => ({ subreason: s })),
-    }));
+      total: reasonTotal(reason),
+      subs: [...subs]
+        .map((s) => ({ subreason: s, total: subTotal(reason, s) }))
+        .sort((a, b) => b.total - a.total),
+    }))
+    .sort((a, b) => b.total - a.total);
 });
 
 function fmtDateCol(d: string): string {
@@ -272,8 +293,8 @@ function fmtDateCol(d: string): string {
 
 function cellStyle(count: number): Record<string, string> {
   if (!count) return {};
-  if (count > 200) return { backgroundColor: "#FF8643", color: "#fff", fontWeight: "600" };
-  if (count >= 50) return { backgroundColor: "#FFE6CF", color: "#2F313B" };
+  if (count > 200) return { backgroundColor: "#374151", color: "#fff", fontWeight: "600" };
+  if (count >= 50) return { backgroundColor: "#e5e7eb", color: "#111827", fontWeight: "500" };
   return {};
 }
 </script>

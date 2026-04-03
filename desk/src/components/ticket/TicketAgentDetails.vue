@@ -163,6 +163,14 @@ const sections = computed(() => [
     label: "Source",
     value: props.ticket.via_customer_portal ? "Portal" : "Mail",
   },
+  ...(props.ticket.email_received_at
+    ? [
+        {
+          label: "Mail Received",
+          value: dateFormat(props.ticket.email_received_at, dateTooltipFormat),
+        },
+      ]
+    : []),
 ]);
 
 // Watch for status changes and clear intervals

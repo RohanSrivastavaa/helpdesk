@@ -16,13 +16,14 @@
       <span class="text-lg font-medium">Notifications</span>
       <div>
         <Button
-          theme="blue"
+          theme="red"
           variant="ghost"
-          @click="() => notificationStore.clear.submit()"
+          @click="() => notificationStore.deleteAll.submit()"
           v-if="notificationStore.data.length"
+          title="Delete all notifications"
         >
           <template #icon>
-            <LucideCheckCheck class="h-4 w-4" />
+            <LucideTrash2 class="h-4 w-4" />
           </template>
         </Button>
         <Button
@@ -116,6 +117,9 @@ import { useNotificationStore } from "@/stores/notification";
 import { useSidebarStore } from "@/stores/sidebar";
 import { Notification } from "@/types";
 import { onClickOutside } from "@vueuse/core";
+import LucideBell from "~icons/lucide/bell";
+import LucideTrash2 from "~icons/lucide/trash-2";
+import LucideX from "~icons/lucide/x";
 import { ref } from "vue";
 
 const notificationStore = useNotificationStore();

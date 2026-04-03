@@ -91,6 +91,10 @@ export interface HDTicket extends DocType {
   email_account?: string;
   /** Via Customer Portal: Check */
   via_customer_portal: 0 | 1;
+  /** Email Received At: Datetime */
+  email_received_at?: string;
+  /** Disposition: Link */
+  disposition?: string;
   /** Attachment: Attach */
   attachment?: any;
   /** Content Type: Data */

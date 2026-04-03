@@ -3,8 +3,8 @@
     <LayoutHeader>
       <template #left-header>
         <div class="flex items-center gap-2">
-          <LucideCalendarClock class="h-5 w-5" style="color:#FF8643" />
-          <span class="text-lg font-semibold text-ink-gray-9">Agent Availability</span>
+          <LucideCalendarClock class="h-4 w-4 text-ink-gray-5" />
+          <span class="text-base font-semibold text-ink-gray-9">Agent Availability</span>
         </div>
       </template>
       <template #right-header>
@@ -42,7 +42,7 @@
       </template>
     </LayoutHeader>
 
-    <div class="flex-1 overflow-auto px-6 py-5">
+    <div class="flex-1 min-h-0 overflow-auto px-6 py-5">
       <div v-if="loading" class="flex flex-col items-center justify-center h-48 gap-3">
         <div class="h-8 w-8 rounded-full border-2 border-t-transparent animate-spin"
           style="border-color:#FF8643; border-top-color:transparent" />
@@ -56,55 +56,78 @@
       </div>
 
       <div v-else class="rounded-xl overflow-hidden border border-outline-gray-2 shadow-sm bg-surface-white">
-        <div class="flex items-center gap-2 px-4 py-2.5"
-          style="background: linear-gradient(135deg, #FF8643 0%, #e8773a 100%)">
-          <span class="text-white text-sm font-semibold">Agent Availability Breakdown</span>
-          <span class="ml-auto text-xs text-white/70">{{ fromDate }} → {{ toDate }}</span>
+        <div class="flex items-center gap-2 px-4 py-2 bg-surface-gray-2 border-b border-outline-gray-2">
+          <span class="text-xs font-semibold text-ink-gray-7 uppercase tracking-wide">Agent Availability</span>
+          <span class="ml-auto text-xs text-ink-gray-4">{{ fromDate }} → {{ toDate }}</span>
         </div>
         <div class="overflow-x-auto">
           <table class="text-xs border-collapse w-full">
             <thead>
               <tr class="bg-surface-gray-1 border-b border-outline-gray-2">
-                <th class="sticky left-0 z-20 bg-surface-gray-1 px-4 py-3 text-left text-xs font-semibold text-ink-gray-5 uppercase tracking-wide border-r border-outline-gray-2 min-w-[180px]"
-                  style="box-shadow: 2px 0 6px rgba(0,0,0,0.07)">
+                <th class="sticky left-0 z-20 bg-surface-gray-1 px-4 py-2.5 text-left text-xs font-semibold text-ink-gray-5 uppercase tracking-wide border-r border-outline-gray-2 min-w-[180px]"
+                  style="box-shadow: 2px 0 4px rgba(0,0,0,0.05)">
                   Agent
                 </th>
                 <th v-for="s in STATUSES" :key="s.value"
-                  class="px-4 py-3 text-center font-semibold text-ink-gray-5 uppercase tracking-wide whitespace-nowrap border-r border-outline-gray-2 min-w-[100px]">
+                  class="px-4 py-2.5 text-center font-semibold text-ink-gray-5 uppercase tracking-wide whitespace-nowrap border-r border-outline-gray-2 min-w-[96px]">
                   <span class="inline-flex items-center gap-1.5">
-                    <span class="inline-block w-2 h-2 rounded-full" :style="`background:${s.color}`" />
+                    <span class="inline-block w-1.5 h-1.5 rounded-full" :style="`background:${s.color}`" />
                     {{ s.label }}
                   </span>
                 </th>
-                <th class="px-4 py-3 text-center font-semibold text-ink-gray-5 uppercase tracking-wide whitespace-nowrap min-w-[100px]">
+                <th class="px-4 py-2.5 text-center font-semibold text-ink-gray-5 uppercase tracking-wide whitespace-nowrap border-r border-outline-gray-2 min-w-[80px] bg-surface-gray-2">
+                  % Online
+                </th>
+                <th class="px-4 py-2.5 text-center font-semibold text-ink-gray-5 uppercase tracking-wide whitespace-nowrap min-w-[80px] bg-surface-gray-2">
                   Total
                 </th>
               </tr>
             </thead>
             <tbody>
+              <!-- Totals row -->
+              <tr class="border-b border-outline-gray-2 bg-surface-gray-1">
+                <td class="sticky left-0 z-10 bg-surface-gray-1 px-4 py-2 border-r border-outline-gray-2 font-semibold text-ink-gray-6 text-xs uppercase tracking-wide"
+                  style="box-shadow: 2px 0 4px rgba(0,0,0,0.05)">
+                  Team total
+                </td>
+                <td v-for="s in STATUSES" :key="s.value"
+                  class="px-4 py-2 text-center border-r border-outline-gray-2 font-semibold text-ink-gray-7 tabular-nums">
+                  {{ fmtSecs(teamStatusTotal(s.value)) }}
+                </td>
+                <td class="px-4 py-2 text-center font-semibold tabular-nums border-r border-outline-gray-2 bg-surface-gray-2"
+                  :class="teamOnlinePct >= 70 ? 'text-green-700' : teamOnlinePct >= 40 ? 'text-amber-700' : 'text-red-600'">
+                  {{ teamOnlinePct }}%
+                </td>
+                <td class="px-4 py-2 text-center font-semibold text-ink-gray-7 tabular-nums bg-surface-gray-2">
+                  {{ fmtSecs(teamStatusTotal('Online') + teamStatusTotal('On Break') + teamStatusTotal('Lunch') + teamStatusTotal('In Training') + teamStatusTotal('Offline')) }}
+                </td>
+              </tr>
+              <!-- Agent rows -->
               <tr v-for="row in sortedRows" :key="row.agent"
                 class="border-b border-outline-gray-2 last:border-0 hover:bg-surface-gray-1 transition-colors">
-                <!-- Agent name -->
-                <td class="sticky left-0 z-10 bg-white px-4 py-3 border-r border-outline-gray-2 whitespace-nowrap"
-                  style="box-shadow: 2px 0 6px rgba(0,0,0,0.07)">
-                  <div class="flex items-center gap-2.5">
-                    <div class="flex items-center justify-center w-7 h-7 rounded-full text-white text-xs font-bold flex-shrink-0"
+                <td class="sticky left-0 z-10 bg-white px-4 py-2.5 border-r border-outline-gray-2 whitespace-nowrap"
+                  style="box-shadow: 2px 0 4px rgba(0,0,0,0.05)">
+                  <div class="flex items-center gap-2">
+                    <div class="flex items-center justify-center w-6 h-6 rounded-full text-white text-xs font-semibold flex-shrink-0"
                       :style="`background:${avatarColor(row.full_name)}`">
                       {{ initials(row.full_name) }}
                     </div>
                     <span class="font-medium text-ink-gray-8">{{ row.full_name }}</span>
                   </div>
                 </td>
-                <!-- Per-status time -->
                 <td v-for="s in STATUSES" :key="s.value"
-                  class="px-4 py-3 text-center border-r border-outline-gray-2 tabular-nums"
-                  :style="row.by_status[s.value] ? { background: s.color + '18' } : {}">
-                  <span :class="row.by_status[s.value] ? 'font-semibold text-ink-gray-8' : 'text-ink-gray-3'">
+                  class="px-4 py-2.5 text-center border-r border-outline-gray-2 tabular-nums">
+                  <span :class="row.by_status[s.value] ? 'font-medium text-ink-gray-8' : 'text-ink-gray-3'">
                     {{ fmtSecs(row.by_status[s.value]) }}
                   </span>
                 </td>
+                <!-- % Online -->
+                <td class="px-4 py-2.5 text-center tabular-nums font-semibold border-r border-outline-gray-2 bg-surface-gray-1"
+                  :class="onlinePct(row) >= 70 ? 'text-green-700' : onlinePct(row) >= 40 ? 'text-amber-700' : 'text-red-600'">
+                  {{ onlinePct(row) }}%
+                </td>
                 <!-- Total -->
-                <td class="px-4 py-3 text-center font-semibold text-ink-gray-7 tabular-nums">
+                <td class="px-4 py-2.5 text-center font-semibold text-ink-gray-6 tabular-nums bg-surface-gray-1">
                   {{ fmtSecs(totalSecs(row)) }}
                 </td>
               </tr>
@@ -114,11 +137,12 @@
       </div>
 
       <!-- Legend -->
-      <div v-if="rows.length" class="flex items-center gap-5 mt-3 text-xs text-ink-gray-5">
+      <div v-if="rows.length" class="flex items-center gap-4 mt-3 text-xs text-ink-gray-4">
         <span v-for="s in STATUSES" :key="s.value" class="flex items-center gap-1.5">
-          <span class="inline-block w-3 h-3 rounded" :style="`background:${s.color}`" />
+          <span class="inline-block w-2 h-2 rounded-full" :style="`background:${s.color}`" />
           {{ s.label }}
         </span>
+        <span class="text-ink-gray-3 ml-2">sorted by % online ↑ (lowest first)</span>
       </div>
     </div>
   </div>
@@ -183,8 +207,25 @@ async function load() {
 }
 onMounted(load);
 
+function onlinePct(row: ReportRow): number {
+  const total = totalSecs(row);
+  if (!total) return 0;
+  return Math.round(100 * (row.by_status["Online"] ?? 0) / total);
+}
+
+function teamStatusTotal(status: string): number {
+  return rows.value.reduce((s, r) => s + (r.by_status[status] ?? 0), 0);
+}
+
+const teamOnlinePct = computed(() => {
+  const allSecs = rows.value.reduce((s, r) => s + totalSecs(r), 0);
+  if (!allSecs) return 0;
+  return Math.round(100 * teamStatusTotal("Online") / allSecs);
+});
+
+// Sort by % online ascending (worst performers first) so issues are visible immediately
 const sortedRows = computed(() =>
-  [...rows.value].sort((a, b) => a.full_name.localeCompare(b.full_name))
+  [...rows.value].sort((a, b) => onlinePct(a) - onlinePct(b))
 );
 
 function totalSecs(row: ReportRow): number {

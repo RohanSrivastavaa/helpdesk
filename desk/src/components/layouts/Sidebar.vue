@@ -51,7 +51,7 @@
         :key="view.name"
         class="my-0.5"
         :label="view.label"
-        :icon="view.label === 'Pending Tickets' ? LucideInbox : LucideCheckCircle2"
+        :icon="view.label === 'Pending Tickets' ? LucideInbox : view.label === 'Unassigned Tickets' ? LucideUserX : LucideCheckCircle2"
         :to="{ name: 'TicketsAgent', query: { view: view.name } }"
         :is-active="route.query.view === view.name"
         :is-expanded="isExpanded"
@@ -67,6 +67,12 @@
             v-if="isExpanded && view.name === 'hd-view-cs-completed' && csViewCounts.resolved_today"
             :label="String(csViewCounts.resolved_today)"
             theme="green"
+            variant="subtle"
+          />
+          <Badge
+            v-if="isExpanded && view.name === 'hd-view-cs-unassigned' && csViewCounts.unassigned"
+            :label="csViewCounts.unassigned > 99 ? '99+' : String(csViewCounts.unassigned)"
+            theme="red"
             variant="subtle"
           />
         </template>
@@ -315,6 +321,7 @@ import LucideActivity from "~icons/lucide/activity";
 import LucideTimer from "~icons/lucide/timer";
 import LucideInbox from "~icons/lucide/inbox";
 import LucideCheckCircle2 from "~icons/lucide/check-circle-2";
+import LucideUserX from "~icons/lucide/user-x";
 import LucideMonitor from "~icons/lucide/monitor";
 import LucideCalendarClock from "~icons/lucide/calendar-clock";
 import Ticket from "~icons/lucide/ticket";
@@ -344,7 +351,7 @@ const showCommandPalette = ref(false);
 const { pinnedViews, publicViews } = useView();
 
 // CS view badge counts
-const csViewCounts = ref<{ pending: number; resolved_today: number }>({ pending: 0, resolved_today: 0 });
+const csViewCounts = ref<{ pending: number; resolved_today: number; unassigned: number }>({ pending: 0, resolved_today: 0, unassigned: 0 });
 let csCountTimer: ReturnType<typeof setInterval> | null = null;
 
 async function fetchCsViewCounts() {
@@ -360,10 +367,11 @@ async function fetchCsViewCounts() {
 // Manager views show all team tickets (no _assign filter)
 const chatSupportTicketViews = computed(() =>
   (publicViews.value || []).filter((v) =>
-    ["hd-view-cs-pending", "hd-view-cs-completed"].includes(v.name)
-  ).sort((a, b) =>
-    a.name === "hd-view-cs-pending" ? -1 : 1
-  )
+    ["hd-view-cs-pending", "hd-view-cs-unassigned", "hd-view-cs-completed"].includes(v.name)
+  ).sort((a, b) => {
+    const order = ["hd-view-cs-pending", "hd-view-cs-unassigned", "hd-view-cs-completed"];
+    return order.indexOf(a.name) - order.indexOf(b.name);
+  })
 );
 
 // Chat support managers see ONLY ticket views + the 3 report dashboards

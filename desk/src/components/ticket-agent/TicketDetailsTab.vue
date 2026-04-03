@@ -42,6 +42,26 @@
         <div class="relative mt-3">
           <TicketTags :ticket-name="ticket.doc.name" />
         </div>
+
+        <!-- Mail Received timestamp -->
+        <div
+          v-if="ticket.doc.email_received_at"
+          class="mt-3 flex items-center text-sm"
+        >
+          <span class="w-[126px] text-gray-600">Mail Received</span>
+          <span class="text-gray-800">{{ dayjs.tz(ticket.doc.email_received_at).format("D MMM YYYY, h:mm A") }}</span>
+        </div>
+
+        <!-- Disposition -->
+        <div
+          v-if="ticket.doc.disposition"
+          class="mt-3 flex items-center text-sm"
+        >
+          <span class="w-[126px] text-gray-600">Disposition</span>
+          <span class="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-medium text-orange-700 border border-orange-200">
+            {{ ticket.doc.disposition }}
+          </span>
+        </div>
       </div>
     </div>
 
@@ -67,6 +87,7 @@
 
 <script setup lang="ts">
 import { Link } from "@/components";
+import { dayjs } from "@/dayjs";
 import { parseField } from "@/composables/formCustomisation";
 import { useNotifyTicketUpdate } from "@/composables/realtime";
 import { useShortcut } from "@/composables/shortcuts";

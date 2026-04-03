@@ -1,20 +1,40 @@
 <template>
-  <Dialog v-model="show" :options="{ title: 'Close Ticket', size: 'sm' }">
+  <Dialog v-model="show" :options="{ title: 'Close Ticket', size: 'lg' }">
     <template #body-content>
-      <div class="flex flex-col gap-4">
-        <p class="text-sm text-ink-gray-6">
+      <div class="flex flex-col gap-5">
+        <p class="text-base text-ink-gray-6">
           Select a disposition to record why this ticket is being
           <span class="font-medium text-ink-gray-9">{{ targetStatus }}</span>.
         </p>
 
+        <!-- Quick picks -->
+        <div>
+          <label class="mb-2 block text-sm font-medium text-ink-gray-6">Quick Pick</label>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="q in quickPicks"
+              :key="q.name"
+              class="rounded-full border px-4 py-1.5 text-sm font-medium transition-colors"
+              :class="selectedDisposition === q.name
+                ? 'border-orange-400 bg-orange-50 text-orange-700'
+                : 'border-outline-gray-2 bg-white text-ink-gray-7 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700'"
+              @click="applyQuickPick(q)"
+            >
+              {{ q.label }}
+            </button>
+          </div>
+        </div>
+
+        <div class="border-t border-outline-gray-2" />
+
         <!-- Step 1: Subcategory -->
         <div>
-          <label class="mb-1 block text-xs font-medium text-ink-gray-6">
+          <label class="mb-1.5 block text-sm font-medium text-ink-gray-6">
             Category <span class="text-red-500">*</span>
           </label>
           <select
             v-model="selectedSubcategory"
-            class="w-full rounded border border-outline-gray-2 bg-surface-white px-3 py-2 text-sm text-ink-gray-8 focus:border-outline-gray-4 focus:outline-none"
+            class="w-full rounded-lg border border-outline-gray-2 bg-surface-white px-3 py-2.5 text-base text-ink-gray-8 focus:border-orange-400 focus:outline-none"
             @change="selectedDisposition = ''"
           >
             <option value="" disabled>— Select category —</option>
@@ -24,40 +44,36 @@
           </select>
         </div>
 
-        <!-- Step 2: Disposition (filtered by subcategory) -->
+        <!-- Step 2: Disposition -->
         <div v-if="selectedSubcategory">
-          <label class="mb-1 block text-xs font-medium text-ink-gray-6">
+          <label class="mb-1.5 block text-sm font-medium text-ink-gray-6">
             Disposition <span class="text-red-500">*</span>
           </label>
           <select
             v-model="selectedDisposition"
-            class="w-full rounded border border-outline-gray-2 bg-surface-white px-3 py-2 text-sm text-ink-gray-8 focus:border-outline-gray-4 focus:outline-none"
+            class="w-full rounded-lg border border-outline-gray-2 bg-surface-white px-3 py-2.5 text-base text-ink-gray-8 focus:border-orange-400 focus:outline-none"
           >
             <option value="" disabled>— Select disposition —</option>
-            <option
-              v-for="d in filteredDispositions"
-              :key="d.name"
-              :value="d.name"
-            >
+            <option v-for="d in filteredDispositions" :key="d.name" :value="d.name">
               {{ d.title }}
             </option>
           </select>
         </div>
 
-        <p v-if="noDispositions" class="text-xs text-red-500">
+        <p v-if="noDispositions" class="text-sm text-red-500">
           No dispositions configured. Please add them in HD Disposition.
         </p>
 
         <!-- Notes -->
         <div>
-          <label class="mb-1 block text-xs font-medium text-ink-gray-6">
+          <label class="mb-1.5 block text-sm font-medium text-ink-gray-6">
             Notes <span class="text-ink-gray-4">(optional)</span>
           </label>
           <textarea
             v-model="notes"
             rows="3"
             placeholder="Any additional context about the resolution…"
-            class="w-full rounded border border-outline-gray-2 bg-surface-white px-3 py-2 text-sm text-ink-gray-8 focus:border-outline-gray-4 focus:outline-none resize-none"
+            class="w-full rounded-lg border border-outline-gray-2 bg-surface-white px-3 py-2.5 text-base text-ink-gray-8 focus:border-orange-400 focus:outline-none resize-none"
           />
         </div>
       </div>
@@ -106,6 +122,12 @@ interface Disposition {
   subcategory?: string;
 }
 
+const quickPicks = [
+  { label: "Meal Picture Review", name: "Meal picture shared",          subcategory: "Client Progress Sharing" },
+  { label: "Diet Modification",   name: "Diet modification requests",   subcategory: "Diet-Related" },
+  { label: "Not to be Responded", name: "Message not to be responded",  subcategory: "Messages not to be Responded" },
+];
+
 const dispositions = ref<Disposition[]>([]);
 const selectedSubcategory = ref("");
 const selectedDisposition = ref("");
@@ -119,10 +141,7 @@ const subcategories = computed(() => {
   const result: string[] = [];
   for (const d of dispositions.value) {
     const sub = d.subcategory || "General";
-    if (!seen.has(sub)) {
-      seen.add(sub);
-      result.push(sub);
-    }
+    if (!seen.has(sub)) { seen.add(sub); result.push(sub); }
   }
   return result;
 });
@@ -132,6 +151,11 @@ const filteredDispositions = computed(() =>
     (d) => (d.subcategory || "General") === selectedSubcategory.value
   )
 );
+
+function applyQuickPick(q: { label: string; name: string; subcategory: string }) {
+  selectedSubcategory.value = q.subcategory;
+  selectedDisposition.value = q.name;
+}
 
 async function fetchDispositions() {
   dispositions.value = [];
@@ -151,9 +175,7 @@ async function fetchDispositions() {
 
 watch(
   () => props.modelValue,
-  (open) => {
-    if (open) fetchDispositions();
-  },
+  (open) => { if (open) fetchDispositions(); },
   { immediate: true }
 );
 

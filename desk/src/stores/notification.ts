@@ -32,6 +32,11 @@ export const useNotificationStore = defineStore("notification", () => {
     auto: false,
     onSuccess: () => resource.reload(),
   });
+  const deleteAll = createResource({
+    url: "helpdesk.helpdesk.doctype.hd_notification.utils.delete_all",
+    auto: false,
+    onSuccess: () => resource.reload(),
+  });
 
   function dismiss(name: string) {
     createResource({
@@ -83,6 +88,7 @@ export const useNotificationStore = defineStore("notification", () => {
 
   return {
     clear,
+    deleteAll,
     data,
     dismiss,
     toggle,

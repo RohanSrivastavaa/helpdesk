@@ -125,7 +125,7 @@ import { __ } from "@/translation";
 import { View } from "@/types";
 import { getIcon, isCustomerPortal } from "@/utils";
 import { Badge, call, Dialog, FeatherIcon, toast, Tooltip, usePageMeta } from "frappe-ui";
-import { computed, h, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { computed, h, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { socket } from "@/socket";
 import { useRoute, useRouter } from "vue-router";
 
@@ -166,7 +166,7 @@ async function fetchAgentStatuses() {
 }
 
 // ── Feature 5: Chat Support summary bar ──────────────────────────────────────
-const CS_VIEWS = ["hd-view-cs-pending", "hd-view-cs-completed"];
+const CS_VIEWS = ["hd-view-cs-pending", "hd-view-cs-unassigned", "hd-view-cs-completed"];
 const showSummaryBar = computed(
   () =>
     !isCustomerPortal.value &&
@@ -918,6 +918,9 @@ function showBrowserNotification(title: string, body: string) {
 }
 
 onMounted(() => {
+  // Force a fresh list fetch every time this view mounts (e.g. after resolving a ticket)
+  nextTick(() => listViewRef.value?.reload());
+
   if (!route.query.view) {
     currentView.value = {
       label: __("List"),
