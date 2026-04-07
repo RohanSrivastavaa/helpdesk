@@ -40,6 +40,21 @@ export default defineConfig({
       workbox: {
         cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // Disable the default NavigationRoute(index.html) so our NetworkFirst
+        // rule below is not shadowed by it.
+        navigateFallback: null,
+        runtimeCaching: [
+          {
+            // Always fetch HTML from network so index.html is never stale after
+            // a deploy. Falls back to cache only if network times out.
+            urlPattern: ({ request }) => request.mode === "navigate",
+            handler: "NetworkFirst",
+            options: {
+              networkTimeoutSeconds: 5,
+              cacheName: "html-cache",
+            },
+          },
+        ],
       },
       manifest: {
         display: "standalone",

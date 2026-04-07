@@ -893,20 +893,38 @@ function resetState() {
 }
 
 // ── Feature 7: Browser notifications + sound ─────────────────────────────────
-function playBeep() {
+let _beepCtx: AudioContext | null = null;
+let _nextBeepAt = 0;
+const BEEP_DURATION = 0.45;
+const MAX_QUEUED_BEEPS = 3;
+
+function getBeepCtx(): AudioContext {
+  if (!_beepCtx || _beepCtx.state === "closed") {
+    _beepCtx = new AudioContext();
+    _nextBeepAt = 0;
+  }
+  return _beepCtx;
+}
+
+async function playBeep() {
   try {
-    const ctx = new AudioContext();
+    const ctx = getBeepCtx();
+    if (ctx.state === "suspended") await ctx.resume();
+    const now = ctx.currentTime;
+    if (_nextBeepAt - now >= BEEP_DURATION * MAX_QUEUED_BEEPS) return;
+    const startAt = Math.max(now, _nextBeepAt);
+    _nextBeepAt = startAt + BEEP_DURATION;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.frequency.value = 880;
     osc.type = "sine";
-    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.35);
-    ctx.close();
+    gain.gain.setValueAtTime(0, startAt);
+    gain.gain.linearRampToValueAtTime(0.5, startAt + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, startAt + 0.4);
+    osc.start(startAt);
+    osc.stop(startAt + 0.4);
   } catch {}
 }
 
@@ -942,15 +960,9 @@ onMounted(() => {
     $socket.on("helpdesk:ticket-update", () => {
       listViewRef.value?.reload();
     });
-    socket.on("ticket_assigned", (data: any) => {
+    socket.on("ticket_assigned", () => {
       listViewRef.value?.reload();
-      // Notify agent when a ticket is assigned to them
-      if (!authStore.isManager) {
-        showBrowserNotification(
-          "Ticket Assigned",
-          data?.subject ? `"${data.subject}" has been assigned to you` : "A ticket has been assigned to you"
-        );
-      }
+      // Audio + browser notification handled globally in AgentRoot.vue
     });
     // Feature 4: agent status dots
     fetchAgentStatuses();

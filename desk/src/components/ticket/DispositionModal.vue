@@ -124,6 +124,7 @@ interface Disposition {
 
 const quickPicks = [
   { label: "Meal Picture Review", name: "Meal picture shared",          subcategory: "Client Progress Sharing" },
+  { label: "Weight Update",       name: "Weight updates shared",        subcategory: "Health & Medical" },
   { label: "Diet Modification",   name: "Diet modification requests",   subcategory: "Diet-Related" },
   { label: "Not to be Responded", name: "Message not to be responded",  subcategory: "Messages not to be Responded" },
 ];
