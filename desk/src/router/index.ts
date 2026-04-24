@@ -151,6 +151,11 @@ const routes = [
     path: "/dashboards/agent-availability",
     name: "AgentAvailability",
     component: () => import("@/pages/dashboards/AgentAvailability.vue"),
+    },
+    {
+      path: "/dashboards/agent-resolution-time",
+      name: "AgentResolutionTime",
+      component: () => import("@/pages/dashboards/AgentResolutionTime.vue"),
   },
   {
     path: "/ticket-aging",

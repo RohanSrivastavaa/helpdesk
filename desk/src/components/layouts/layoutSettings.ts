@@ -58,6 +58,11 @@ export const agentPortalSidebarOptions = [
     to: "AgentStatusDashboard",
   },
   {
+    label: __("Resolution Time"),
+    icon: LucideClock,
+    to: "AgentResolutionTime",
+  },
+  {
     label: __("Performance"),
     icon: LucideBarChart2,
     to: "AgentPerformanceDashboard",
